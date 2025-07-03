@@ -47,3 +47,8 @@ output "vpc_cidr" {
   description = "CIDR block of the VPC"
   value       = module.vpc.vpc_cidr
 }
+
+output "node_group_name" {
+  description = "Name of the EKS managed node group"
+  value       = module.eks.node_group_name
+}
