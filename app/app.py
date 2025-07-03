@@ -1,3 +1,4 @@
+import os
 import uuid
 from flask import Flask, jsonify, request
 
@@ -9,7 +10,12 @@ _items = []
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "ok", "items": len(_items)})
+    return jsonify({
+        "status": "ok",
+        "items": len(_items),
+        "pod": os.environ.get("POD_NAME", "unknown"),
+        "namespace": os.environ.get("POD_NAMESPACE", "unknown"),
+    })
 
 
 @app.route("/items")
