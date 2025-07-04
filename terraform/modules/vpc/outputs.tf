@@ -32,3 +32,13 @@ output "sts_endpoint_id" {
   description = "ID of the STS Interface VPC endpoint"
   value       = aws_vpc_endpoint.sts.id
 }
+
+output "ecr_api_endpoint_id" {
+  description = "ID of the ECR API Interface VPC endpoint"
+  value       = aws_vpc_endpoint.ecr_api.id
+}
+
+output "ecr_dkr_endpoint_id" {
+  description = "ID of the ECR DKR Interface VPC endpoint"
+  value       = aws_vpc_endpoint.ecr_dkr.id
+}
