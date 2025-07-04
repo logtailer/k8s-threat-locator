@@ -6,6 +6,7 @@
   condition: >
     spawned_process
     and container
+    and items_api_container
     and proc.name in (shell_binaries)
   enabled: true
   output: >
