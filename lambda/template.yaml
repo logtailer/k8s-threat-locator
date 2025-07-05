@@ -139,3 +139,9 @@ Outputs:
   FunctionName:
     Description: Name of the incident responder Lambda function
     Value: !Ref IncidentResponderFunction
+  DeadLetterQueueUrl:
+    Description: URL of the DLQ — monitor this for failed quarantine attempts
+    Value: !Ref QuarantineDLQ
+  DeadLetterQueueArn:
+    Description: ARN of the DLQ
+    Value: !GetAtt QuarantineDLQ.Arn
