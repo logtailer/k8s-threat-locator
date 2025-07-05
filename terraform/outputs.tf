@@ -57,3 +57,9 @@ output "cluster_version" {
   description = "Kubernetes version running on the EKS cluster"
   value       = module.eks.cluster_version
 }
+
+output "cluster_certificate_authority_data" {
+  description = "Base64-encoded CA data for the EKS cluster — used to build kubeconfig"
+  value       = module.eks.cluster_certificate_authority_data
+  sensitive   = true
+}
