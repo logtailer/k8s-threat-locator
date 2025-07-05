@@ -32,3 +32,8 @@ output "node_group_name" {
   description = "Name of the EKS managed node group"
   value       = aws_eks_node_group.this.node_group_name
 }
+
+output "cluster_version" {
+  description = "Kubernetes version of the EKS cluster"
+  value       = aws_eks_cluster.this.version
+}
