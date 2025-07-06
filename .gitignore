@@ -59,3 +59,8 @@ lambda/*.pyc
 
 # pre-commit cache
 .pre-commit-cache/
+
+# Lambda layer build cache (sam build --use-container)
+lambda/.build/
+lambda/dependencies/
+lambda/python/
