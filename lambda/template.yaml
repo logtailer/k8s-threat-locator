@@ -37,6 +37,21 @@ Resources:
         - Key: ManagedBy
           Value: sam
 
+  FalcoAlertsTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref FalcoAlertsTopic
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowFalcosidekickPublish
+            Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action: sns:Publish
+            Resource: !Ref FalcoAlertsTopic
+
   QuarantineDLQ:
     Type: AWS::SQS::Queue
     Properties:
