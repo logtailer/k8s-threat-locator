@@ -1,4 +1,11 @@
+# CVE-2018-1000656, CVE-2019-1010083 — ReDoS and unhandled exceptions
 Flask==1.0.0
+
+# CVE-2019-14806 — predictable debugger PIN allows RCE
 Werkzeug==0.14.1
+
+# CVE-2019-10906 — sandbox escape via _fail_with_undefined_error
 Jinja2==2.10
+
+# Insecure serialisation, no longer maintained
 itsdangerous==0.24
