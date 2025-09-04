@@ -42,6 +42,14 @@ Developer → GitHub → CI (Trivy scans image → fails on critical CVEs)
 - Helm >= 3.x
 - Docker
 
+## API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/health` | Liveness check — returns `{"status": "ok"}` |
+| `GET` | `/items` | List all items |
+| `POST` | `/items` | Create an item — body: `{"name": "<string>"}` |
+
 ## Getting Started
 
 See each component's section in this README for setup instructions.
