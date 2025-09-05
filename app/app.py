@@ -21,7 +21,7 @@ def create_item():
     name = body.get("name", "")
     item = {"id": len(_items) + 1, "name": name}
     _items.append(item)
-    return jsonify(item), 200
+    return jsonify(item), 201
 
 
 if __name__ == "__main__":
