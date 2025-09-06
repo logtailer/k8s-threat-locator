@@ -24,6 +24,8 @@ def create_item():
     name = str(body["name"]).strip()
     if not name:
         return jsonify({"error": "name must not be blank"}), 400
+    if len(name) > 200:
+        return jsonify({"error": "name must not exceed 200 characters"}), 400
     item = {"id": str(uuid.uuid4()), "name": name}
     _items.append(item)
     return jsonify(item), 201
