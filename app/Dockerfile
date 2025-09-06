@@ -10,4 +10,6 @@ COPY app.py .
 
 EXPOSE 5000
 
+# Intentionally runs as root — Falco detects privileged shell execs into this container.
+# In a production image, add: RUN useradd -m app && USER app
 CMD ["python", "app.py"]
