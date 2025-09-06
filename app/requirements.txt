@@ -9,3 +9,7 @@ Jinja2==2.10
 
 # Insecure serialisation, no longer maintained
 itsdangerous==0.24
+
+# Dev / test only — not installed in the Docker image
+# pytest
+# pytest-cov
