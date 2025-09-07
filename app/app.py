@@ -24,6 +24,16 @@ def get_item(item_id):
     return jsonify(item)
 
 
+@app.route("/items/<item_id>", methods=["DELETE"])
+def delete_item(item_id):
+    global _items
+    before = len(_items)
+    _items = [i for i in _items if i["id"] != item_id]
+    if len(_items) == before:
+        return jsonify({"error": "item not found"}), 404
+    return "", 204
+
+
 @app.route("/items", methods=["POST"])
 def create_item():
     body = request.get_json(force=False, silent=True)
