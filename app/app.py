@@ -16,6 +16,14 @@ def get_items():
     return jsonify(_items)
 
 
+@app.route("/items/<item_id>")
+def get_item(item_id):
+    item = next((i for i in _items if i["id"] == item_id), None)
+    if item is None:
+        return jsonify({"error": "item not found"}), 404
+    return jsonify(item)
+
+
 @app.route("/items", methods=["POST"])
 def create_item():
     body = request.get_json(force=False, silent=True)
