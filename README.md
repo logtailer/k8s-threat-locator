@@ -232,7 +232,9 @@ aws s3 cp ~/.kube/config s3://<your-kubeconfig-bucket>/kubeconfig
 |--------|------|-------------|
 | `GET` | `/health` | Liveness check — returns `{"status": "ok"}` |
 | `GET` | `/items` | List all items |
+| `GET` | `/items/<id>` | Get a single item by UUID |
 | `POST` | `/items` | Create an item — body: `{"name": "<string>"}` |
+| `DELETE` | `/items/<id>` | Delete an item — returns 204 |
 
 ## Getting Started
 
