@@ -11,3 +11,7 @@ venv/
 dist/
 build/
 .DS_Store
+tests/
+*.cfg
+tox.ini
+Makefile
