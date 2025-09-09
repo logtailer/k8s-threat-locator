@@ -53,3 +53,19 @@ Developer → GitHub → CI (Trivy scans image → fails on critical CVEs)
 ## Getting Started
 
 See each component's section in this README for setup instructions.
+
+## Running Locally
+
+```bash
+cd app
+docker build -t k8s-threat-locator-app .
+docker run -p 5000:5000 k8s-threat-locator-app
+```
+
+Test the API:
+
+```bash
+curl http://localhost:5000/health
+curl http://localhost:5000/items
+curl -X POST http://localhost:5000/items -H "Content-Type: application/json" -d '{"name":"widget"}'
+```
