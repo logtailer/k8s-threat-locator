@@ -18,10 +18,13 @@ def get_items():
 
 @app.route("/items", methods=["POST"])
 def create_item():
-    body = request.get_json(silent=True)
+    body = request.get_json(force=False, silent=True)
     if not body or "name" not in body:
         return jsonify({"error": "name is required"}), 400
-    item = {"id": str(uuid.uuid4()), "name": body["name"]}
+    name = str(body["name"]).strip()
+    if not name:
+        return jsonify({"error": "name must not be blank"}), 400
+    item = {"id": str(uuid.uuid4()), "name": name}
     _items.append(item)
     return jsonify(item), 201
 
