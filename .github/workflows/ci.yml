@@ -76,3 +76,12 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-results.sarif
+
+      - name: Fail on critical CVEs
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: image
+          image-ref: k8s-threat-locator:${{ github.sha }}
+          severity: CRITICAL
+          ignore-unfixed: false
+          exit-code: "1"
