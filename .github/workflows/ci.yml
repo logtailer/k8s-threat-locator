@@ -94,6 +94,7 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-results.sarif
+          wait-for-processing: true
 
       # Hard gate: exits 1 if any fixable critical CVEs are present.
       # This blocks the push job and keeps vulnerable images off ECR.
