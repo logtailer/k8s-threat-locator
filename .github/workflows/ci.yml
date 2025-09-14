@@ -53,7 +53,7 @@ jobs:
           context: ./app
           push: false
           load: true
-          tags: k8s-threat-locator:${{ github.sha }}
+          tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
 
   trivy-scan:
     runs-on: ubuntu-latest
