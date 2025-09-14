@@ -80,13 +80,13 @@ jobs:
           context: ./app
           push: false
           load: true
-          tags: k8s-threat-locator:${{ github.sha }}
+          tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
 
       - name: Scan image and upload SARIF
         uses: aquasecurity/trivy-action@v0.20.0
         with:
           scan-type: image
-          image-ref: k8s-threat-locator:${{ github.sha }}
+          image-ref: ${{ env.IMAGE_NAME }}:${{ github.sha }}
           format: sarif
           output: trivy-results.sarif
           severity: CRITICAL,HIGH,MEDIUM
@@ -103,7 +103,7 @@ jobs:
         uses: aquasecurity/trivy-action@v0.20.0
         with:
           scan-type: image
-          image-ref: k8s-threat-locator:${{ github.sha }}
+          image-ref: ${{ env.IMAGE_NAME }}:${{ github.sha }}
           severity: CRITICAL
           ignore-unfixed: false
           exit-code: "1"
