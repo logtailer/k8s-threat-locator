@@ -54,6 +54,14 @@ Developer → GitHub → CI (Trivy scans image → fails on critical CVEs)
 
 See each component's section in this README for setup instructions.
 
+## CI Pipeline
+
+The pipeline runs on every push to `main` and every pull request targeting `main`. It has three sequential jobs:
+
+1. **build** — builds the Docker image locally (no push yet)
+2. **trivy-scan** — scans the image for vulnerabilities; uploads results to the GitHub Security tab as SARIF, then runs a hard gate that exits non-zero if any **CRITICAL** CVEs are found. The pipeline stops here.
+3. **push** — pushes to ECR with both `<sha>` and `latest` tags. This job only runs after the scan passes and only on pushes to `main`. Because the `app/requirements.txt` pins intentionally vulnerable Flask versions, this job will never actually run — which is the point.
+
 ## Running Locally
 
 ```bash
