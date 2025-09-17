@@ -31,3 +31,6 @@ env/
 lambda/package/
 .aws-sam/
 samconfig.toml
+
+# Trivy
+*.sarif
