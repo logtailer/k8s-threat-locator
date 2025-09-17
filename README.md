@@ -54,6 +54,10 @@ Developer → GitHub → CI (Trivy scans image → fails on critical CVEs)
 
 See each component's section in this README for setup instructions.
 
+## Intentional Vulnerabilities
+
+The `app/requirements.txt` pins old, CVE-laden versions of Flask and its dependencies. This is deliberate — the project exists to show that Trivy catches these before any image reaches the registry. In a real project you would pin to the latest patched versions. Here, leaving them unfixed keeps the Trivy gate visibly red so the shift-left control is easy to demonstrate.
+
 ## CI Pipeline
 
 The pipeline runs on every push to `main` and every pull request targeting `main`. It has three sequential jobs:
