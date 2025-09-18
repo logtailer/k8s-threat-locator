@@ -40,6 +40,7 @@ jobs:
           registry: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
 
       - name: Build image
+        id: build
         uses: docker/build-push-action@v5.4.0
         with:
           context: ./app
