@@ -90,6 +90,8 @@ jobs:
         with:
           sarif_file: trivy-results.sarif
 
+      # Hard gate: exits 1 if any fixable critical CVEs are present.
+      # This blocks the push job and keeps vulnerable images off ECR.
       - name: Fail on critical CVEs
         uses: aquasecurity/trivy-action@v0.20.0
         with:
