@@ -54,6 +54,36 @@ Developer → GitHub → CI (Trivy scans image → fails on critical CVEs)
 
 See each component's section in this README for setup instructions.
 
+## Architecture Overview
+
+```
+┌─────────────┐    push     ┌──────────────────────────────────────────┐
+│  Developer  │────────────▶│  GitHub Actions CI                       │
+└─────────────┘             │  1. build  → docker build (no push)      │
+                            │  2. scan   → Trivy CRITICAL gate          │
+                            │  3. push   → ECR (blocked by step 2)     │
+                            └──────────────────────────────────────────┘
+                                              ↓ (if scan passes)
+                             ┌────────────────────────────────────────┐
+                             │  AWS EKS Cluster                       │
+                             │  ┌──────────────┐  ┌───────────────┐  │
+                             │  │  Calico CNI  │  │  Flask app    │  │
+                             │  │  default-deny│  │  (victim pod) │  │
+                             │  └──────────────┘  └───────────────┘  │
+                             │  ┌──────────────────────────────────┐  │
+                             │  │  Falco DaemonSet                 │  │
+                             │  │  detects: shell, /etc writes,    │  │
+                             │  │  unexpected outbound connections  │  │
+                             │  └──────────────────────────────────┘  │
+                             └────────────────────────────────────────┘
+                                              ↓ alert
+                             ┌────────────────────────────────────────┐
+                             │  AWS SNS → Lambda                      │
+                             │  applies quarantine NetworkPolicy       │
+                             │  to isolate the compromised pod        │
+                             └────────────────────────────────────────┘
+```
+
 ## Intentional Vulnerabilities
 
 The `app/requirements.txt` pins old, CVE-laden versions of Flask and its dependencies. This is deliberate — the project exists to show that Trivy catches these before any image reaches the registry. In a real project you would pin to the latest patched versions. Here, leaving them unfixed keeps the Trivy gate visibly red so the shift-left control is easy to demonstrate.
