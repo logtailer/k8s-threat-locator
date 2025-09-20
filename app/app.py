@@ -8,7 +8,7 @@ _items = []
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "ok"})
+    return jsonify({"status": "ok", "items": len(_items)})
 
 
 @app.route("/items")
