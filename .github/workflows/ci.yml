@@ -107,6 +107,7 @@ jobs:
           severity: CRITICAL
           ignore-unfixed: false
           exit-code: "1"
+          format: table
 
   push:
     runs-on: ubuntu-latest
