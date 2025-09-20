@@ -15,3 +15,7 @@ tests/
 *.cfg
 tox.ini
 Makefile
+.coverage
+coverage.xml
+.mypy_cache/
+.ruff_cache/
