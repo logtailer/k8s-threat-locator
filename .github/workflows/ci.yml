@@ -1,6 +1,7 @@
 name: CI
 # Trivy scan gate: pipeline fails on any CRITICAL CVE in the app image.
 # The push job only runs after the scan passes — intentionally blocked by Flask==1.0.0.
+# Permissions are scoped to minimum required for each job.
 
 on:
   push:
