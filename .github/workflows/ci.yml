@@ -119,6 +119,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: trivy-scan
+    permissions:
+      contents: read
     # only push on direct pushes to main, not on pull_request events
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
