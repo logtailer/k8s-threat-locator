@@ -34,3 +34,4 @@ samconfig.toml
 
 # Trivy
 *.sarif
+trivy-results.sarif
