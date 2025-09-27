@@ -9,11 +9,13 @@ variable "cluster_name" {
 }
 
 variable "environment" {
-  type = string
+  description = "Deployment environment tag (e.g. dev, staging, prod)"
+  type        = string
 }
 
 variable "project" {
-  type = string
+  description = "Project name applied as a tag to all VPC resources"
+  type        = string
 }
 
 variable "public_subnet_cidrs" {
