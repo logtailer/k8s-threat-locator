@@ -11,7 +11,7 @@ variable "cluster_name" {
 }
 
 variable "cluster_version" {
-  description = "Kubernetes version for the EKS cluster"
+  description = "Kubernetes version for the EKS cluster. Align with EKS supported versions."
   type        = string
   default     = "1.29"
 }
