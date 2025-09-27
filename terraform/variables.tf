@@ -38,3 +38,9 @@ variable "app_s3_bucket_name" {
   description = "Name of the S3 bucket the app pod needs read access to via IRSA"
   type        = string
 }
+
+variable "node_instance_type" {
+  description = "EC2 instance type for EKS managed node group workers"
+  type        = string
+  default     = "t3.medium"
+}
