@@ -17,3 +17,8 @@ output "nat_gateway_ids" {
   description = "IDs of the NAT gateways"
   value       = aws_nat_gateway.this[*].id
 }
+
+output "vpc_cidr" {
+  description = "CIDR block of the VPC"
+  value       = aws_vpc.this.cidr_block
+}
