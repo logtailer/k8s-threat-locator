@@ -4,9 +4,17 @@ variable "repository_name" {
 }
 
 variable "environment" {
-  type = string
+  description = "Deployment environment tag"
+  type        = string
 }
 
 variable "project" {
-  type = string
+  description = "Project name tag"
+  type        = string
+}
+
+variable "image_tag_mutability" {
+  description = "Image tag mutability setting for the ECR repository"
+  type        = string
+  default     = "IMMUTABLE"
 }
