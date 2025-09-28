@@ -7,7 +7,8 @@ locals {
 }
 
 resource "aws_vpc" "this" {
-  cidr_block           = var.vpc_cidr
+  cidr_block = var.vpc_cidr
+  # DNS hostnames required for EKS node registration and CoreDNS
   enable_dns_hostnames = true
   enable_dns_support   = true
 
