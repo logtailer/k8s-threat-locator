@@ -48,7 +48,8 @@ resource "aws_internet_gateway" "this" {
   vpc_id = aws_vpc.this.id
 
   tags = merge(local.tags, {
-    Name = "${var.project}-igw"
+    Name        = "${var.project}-igw"
+    Description = "Internet gateway for public subnets"
   })
 }
 
