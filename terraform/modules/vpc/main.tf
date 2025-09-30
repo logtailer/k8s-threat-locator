@@ -69,6 +69,7 @@ resource "aws_nat_gateway" "this" {
 
   tags = merge(local.tags, {
     Name = "${var.project}-nat-${var.azs[count.index]}"
+    AZ   = var.azs[count.index]
   })
 
   depends_on = [aws_internet_gateway.this]
