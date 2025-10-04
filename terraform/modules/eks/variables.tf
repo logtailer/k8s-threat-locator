@@ -20,11 +20,18 @@ variable "private_subnet_ids" {
 }
 
 variable "environment" {
-  type = string
+  description = "Deployment environment tag"
+  type        = string
 }
 
 variable "project" {
-  type = string
+  description = "Project name tag"
+  type        = string
+}
+
+variable "ecr_repository_arn" {
+  description = "ARN of the ECR repository — used to scope node IAM read policy"
+  type        = string
 }
 
 variable "node_instance_type" {
