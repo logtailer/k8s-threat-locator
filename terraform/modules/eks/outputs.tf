@@ -22,3 +22,8 @@ output "oidc_provider_arn" {
   description = "ARN of the OIDC provider — passed to the IRSA module"
   value       = aws_iam_openid_connect_provider.eks.arn
 }
+
+output "node_group_role_arn" {
+  description = "IAM role ARN of the managed node group"
+  value       = aws_iam_role.node.arn
+}
