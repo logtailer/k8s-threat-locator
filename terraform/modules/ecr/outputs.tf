@@ -12,3 +12,8 @@ output "registry_id" {
   description = "Registry ID (AWS account ID) owning this repository"
   value       = aws_ecr_repository.this.registry_id
 }
+
+output "repository_name" {
+  description = "Name of the ECR repository"
+  value       = aws_ecr_repository.this.name
+}
