@@ -64,7 +64,8 @@ resource "aws_eip" "nat" {
 }
 
 resource "aws_nat_gateway" "this" {
-  count         = length(var.public_subnet_cidrs)
+  count = length(var.public_subnet_cidrs)
+  # NAT gateway must live in a public subnet so it can reach the IGW
   allocation_id = aws_eip.nat[count.index].id
   subnet_id     = aws_subnet.public[count.index].id
 
