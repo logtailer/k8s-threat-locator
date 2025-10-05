@@ -80,11 +80,6 @@ resource "aws_iam_role_policy_attachment" "node_cni_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
 }
 
-variable "ecr_repository_arn" {
-  description = "ARN of the ECR repository — node role is scoped to this repo only"
-  type        = string
-  default     = "*"
-}
 
 resource "aws_iam_policy" "node_ecr_read" {
   name        = "${var.cluster_name}-node-ecr-read"
