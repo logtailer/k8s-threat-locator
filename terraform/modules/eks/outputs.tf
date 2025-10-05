@@ -25,5 +25,5 @@ output "oidc_provider_arn" {
 
 output "node_group_role_arn" {
   description = "IAM role ARN of the managed node group"
-  value       = aws_iam_role.node.arn
+  value       = aws_iam_role.node_group.arn
 }
