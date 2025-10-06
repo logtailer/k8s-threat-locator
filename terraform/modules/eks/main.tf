@@ -41,7 +41,7 @@ resource "aws_eks_cluster" "this" {
     endpoint_public_access  = false
   }
 
-  enabled_cluster_log_types = ["api", "audit", "authenticator"]
+  enabled_cluster_log_types = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
 
   tags = merge(local.tags, {
     Name = var.cluster_name
