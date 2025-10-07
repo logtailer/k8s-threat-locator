@@ -78,3 +78,31 @@ resource "aws_iam_role_policy_attachment" "node_cni_policy" {
   role       = aws_iam_role.node_group.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
 }
+
+resource "aws_eks_node_group" "this" {
+  cluster_name    = aws_eks_cluster.this.name
+  node_group_name = "${var.cluster_name}-nodes"
+  node_role_arn   = aws_iam_role.node_group.arn
+  subnet_ids      = var.private_subnet_ids
+
+  instance_types = [var.node_instance_type]
+
+  scaling_config {
+    desired_size = var.desired_nodes
+    min_size     = var.min_nodes
+    max_size     = var.max_nodes
+  }
+
+  update_config {
+    max_unavailable = 1
+  }
+
+  tags = merge(local.tags, {
+    Name = "${var.cluster_name}-nodes"
+  })
+
+  depends_on = [
+    aws_iam_role_policy_attachment.node_worker_policy,
+    aws_iam_role_policy_attachment.node_cni_policy,
+  ]
+}
