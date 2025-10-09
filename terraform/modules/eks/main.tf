@@ -86,6 +86,22 @@ resource "aws_eks_addon" "vpc_cni" {
   tags = local.tags
 }
 
+resource "aws_eks_addon" "coredns" {
+  cluster_name = aws_eks_cluster.this.name
+  addon_name   = "coredns"
+
+  tags = local.tags
+
+  depends_on = [aws_eks_node_group.this]
+}
+
+resource "aws_eks_addon" "kube_proxy" {
+  cluster_name = aws_eks_cluster.this.name
+  addon_name   = "kube-proxy"
+
+  tags = local.tags
+}
+
 data "tls_certificate" "eks" {
   url = aws_eks_cluster.this.identity[0].oidc[0].issuer
 }
