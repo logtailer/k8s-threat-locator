@@ -79,6 +79,38 @@ resource "aws_iam_role_policy_attachment" "node_cni_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
 }
 
+variable "ecr_repository_arn" {
+  description = "ARN of the ECR repository — node role is scoped to this repo only"
+  type        = string
+  default     = "*"
+}
+
+resource "aws_iam_policy" "node_ecr_read" {
+  name        = "${var.cluster_name}-node-ecr-read"
+  description = "Allow nodes to pull images from the specific ECR repo only"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["ecr:GetDownloadUrlForLayer", "ecr:BatchGetImage", "ecr:BatchCheckLayerAvailability"]
+        Resource = var.ecr_repository_arn
+      },
+      {
+        Effect   = "Allow"
+        Action   = "ecr:GetAuthorizationToken"
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "node_ecr_read" {
+  role       = aws_iam_role.node_group.name
+  policy_arn = aws_iam_policy.node_ecr_read.arn
+}
+
 resource "aws_eks_addon" "vpc_cni" {
   cluster_name = aws_eks_cluster.this.name
   addon_name   = "vpc-cni"
