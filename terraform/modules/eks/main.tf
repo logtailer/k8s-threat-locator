@@ -110,7 +110,7 @@ resource "aws_iam_role_policy_attachment" "node_ecr_read" {
 resource "aws_eks_addon" "vpc_cni" {
   cluster_name = aws_eks_cluster.this.name
   addon_name   = "vpc-cni"
-
+  # vpc-cni must be present before coredns and other addons
   tags = local.tags
 }
 
