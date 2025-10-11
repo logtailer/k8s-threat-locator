@@ -140,6 +140,8 @@ resource "aws_eks_addon" "ebs_csi_driver" {
   depends_on = [aws_eks_node_group.this]
 }
 
+# The OIDC thumbprint is fetched from the issuer URL at plan time.
+# EKS rotates the OIDC endpoint certificate periodically — re-apply after rotation.
 data "tls_certificate" "eks" {
   url = aws_eks_cluster.this.identity[0].oidc[0].issuer
 }
