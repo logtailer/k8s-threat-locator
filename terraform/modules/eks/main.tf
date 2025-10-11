@@ -117,6 +117,7 @@ resource "aws_eks_addon" "vpc_cni" {
 resource "aws_eks_addon" "coredns" {
   cluster_name = aws_eks_cluster.this.name
   addon_name   = "coredns"
+  resolve_conflicts_on_create = "OVERWRITE"
 
   tags = local.tags
 
