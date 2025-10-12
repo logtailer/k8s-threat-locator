@@ -36,3 +36,9 @@ variable "environment" {
 variable "project" {
   type = string
 }
+
+variable "tags" {
+  description = "Additional tags to merge onto IRSA resources"
+  type        = map(string)
+  default     = {}
+}
