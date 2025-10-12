@@ -19,12 +19,14 @@ module "vpc" {
 module "eks" {
   source = "./modules/eks"
 
-  cluster_name       = var.cluster_name
-  cluster_version    = var.cluster_version
-  vpc_id             = module.vpc.vpc_id
-  private_subnet_ids = module.vpc.private_subnet_ids
-  environment        = var.environment
-  project            = var.project
+  cluster_name        = var.cluster_name
+  cluster_version     = var.cluster_version
+  vpc_id              = module.vpc.vpc_id
+  private_subnet_ids  = module.vpc.private_subnet_ids
+  environment         = var.environment
+  project             = var.project
+  ecr_repository_arn  = module.ecr.repository_arn
+  node_instance_type  = var.node_instance_type
 }
 
 module "ecr" {
