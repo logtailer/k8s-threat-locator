@@ -32,3 +32,8 @@ output "oidc_provider_arn" {
   description = "ARN of the EKS OIDC provider"
   value       = module.eks.oidc_provider_arn
 }
+
+output "node_group_role_arn" {
+  description = "IAM role ARN of the EKS node group"
+  value       = module.eks.node_group_role_arn
+}
