@@ -34,6 +34,28 @@ Developer → GitHub → CI (Trivy scans image → fails on critical CVEs)
 | `lambda/` | Python Lambda for automated pod quarantine |
 | `.github/workflows/` | CI pipeline with Trivy vulnerability gate |
 
+## Terraform
+
+All AWS infrastructure is provisioned via Terraform. The root module composes four child modules: `vpc`, `eks`, `ecr`, and `irsa`.
+
+```bash
+cd terraform
+
+# create the S3 bucket and DynamoDB table for state first (one-time)
+aws s3 mb s3://k8s-threat-locator-tfstate
+aws dynamodb create-table \
+  --table-name k8s-threat-locator-tflock \
+  --attribute-definitions AttributeName=LockID,AttributeType=S \
+  --key-schema AttributeName=LockID,KeyType=HASH \
+  --billing-mode PAY_PER_REQUEST
+
+terraform init
+terraform plan -out=tfplan
+terraform apply tfplan
+```
+
+> **Warning:** `terraform destroy` will delete the EKS cluster and all node groups. Make sure no workloads depend on the cluster before running it.
+
 ## Prerequisites
 
 - AWS CLI configured with appropriate permissions
