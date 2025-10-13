@@ -25,3 +25,11 @@ module "eks" {
   environment        = var.environment
   project            = var.project
 }
+
+module "ecr" {
+  source = "./modules/ecr"
+
+  repository_name = var.project
+  environment     = var.environment
+  project         = var.project
+}
