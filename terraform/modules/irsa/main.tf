@@ -41,11 +41,13 @@ resource "aws_iam_policy" "app_s3" {
     Version = "2012-10-17"
     Statement = [
       {
+        Sid      = "AllowS3ReadOnSpecificBucket"
         Effect   = "Allow"
         Action   = ["s3:GetObject", "s3:ListBucket"]
         Resource = [var.s3_bucket_arn, "${var.s3_bucket_arn}/*"]
       },
       {
+        Sid       = "DenyAllOtherS3Actions"
         Effect    = "Deny"
         Action    = "s3:*"
         NotResource = [var.s3_bucket_arn, "${var.s3_bucket_arn}/*"]
