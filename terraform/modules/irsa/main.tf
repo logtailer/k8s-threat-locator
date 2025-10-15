@@ -62,3 +62,29 @@ resource "aws_iam_role_policy_attachment" "app_s3" {
 
   depends_on = [aws_iam_role.app, aws_iam_policy.app_s3]
 }
+
+# Explicit deny on all other S3 actions ensures even future IAM grants
+# cannot escalate the pod's S3 permissions beyond this bucket.
+resource "aws_iam_role_policy" "app_s3_explicit_deny" {
+  name = "deny-all-other-s3"
+  role = aws_iam_role.app.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ExplicitDenyAllOtherBuckets"
+        Effect   = "Deny"
+        Action   = ["s3:*"]
+        Resource = "*"
+        Condition = {
+          StringNotEquals = {
+            "s3:ResourceAccount" = ["${data.aws_caller_identity.current.account_id}"]
+          }
+        }
+      }
+    ]
+  })
+}
+
+data "aws_caller_identity" "current" {}
