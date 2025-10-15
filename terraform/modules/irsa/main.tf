@@ -59,4 +59,6 @@ resource "aws_iam_policy" "app_s3" {
 resource "aws_iam_role_policy_attachment" "app_s3" {
   role       = aws_iam_role.app.name
   policy_arn = aws_iam_policy.app_s3.arn
+
+  depends_on = [aws_iam_role.app, aws_iam_policy.app_s3]
 }
