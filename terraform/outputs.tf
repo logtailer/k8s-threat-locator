@@ -22,3 +22,8 @@ output "private_subnet_ids" {
   description = "IDs of the private subnets"
   value       = module.vpc.private_subnet_ids
 }
+
+output "irsa_role_arn" {
+  description = "IAM role ARN for IRSA — set this as the eks.amazonaws.com/role-arn annotation on the ServiceAccount"
+  value       = module.irsa.role_arn
+}
