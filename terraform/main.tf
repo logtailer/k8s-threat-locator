@@ -33,3 +33,14 @@ module "ecr" {
   environment     = var.environment
   project         = var.project
 }
+
+module "irsa" {
+  source = "./modules/irsa"
+
+  cluster_name            = var.cluster_name
+  oidc_provider_arn       = module.eks.oidc_provider_arn
+  cluster_oidc_issuer_url = module.eks.cluster_oidc_issuer_url
+  s3_bucket_arn           = "arn:aws:s3:::${var.app_s3_bucket_name}"
+  environment             = var.environment
+  project                 = var.project
+}
