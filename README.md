@@ -34,6 +34,25 @@ Developer → GitHub → CI (Trivy scans image → fails on critical CVEs)
 | `lambda/` | Python Lambda for automated pod quarantine |
 | `.github/workflows/` | CI pipeline with Trivy vulnerability gate |
 
+## IRSA (IAM Roles for Service Accounts)
+
+Pods in the `threat-demo` namespace are granted AWS credentials through IRSA rather than instance profiles. The flow:
+
+1. EKS creates a projected OIDC token for each pod and mounts it at `/var/run/secrets/eks.amazonaws.com/serviceaccount/token`.
+2. The AWS SDK exchanges this token with STS (`AssumeRoleWithWebIdentity`).
+3. STS validates the token against the cluster OIDC provider and checks that both `aud = sts.amazonaws.com` and `sub = system:serviceaccount:threat-demo:app-sa` match.
+4. STS returns short-lived credentials scoped to the `irsa-app` IAM role.
+5. The role only has `s3:GetObject` and `s3:ListBucket` on the specific app bucket.
+
+After `terraform apply`, annotate the ServiceAccount:
+
+```bash
+ROLE_ARN=$(terraform -chdir=terraform output -raw irsa_role_arn)
+kubectl annotate serviceaccount app-sa \
+  -n threat-demo \
+  eks.amazonaws.com/role-arn=$ROLE_ARN
+```
+
 ## Terraform
 
 All AWS infrastructure is provisioned via Terraform. The root module composes four child modules: `vpc`, `eks`, `ecr`, and `irsa`.
