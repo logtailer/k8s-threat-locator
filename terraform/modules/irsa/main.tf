@@ -1,9 +1,12 @@
 locals {
-  tags = {
-    Project     = var.project
-    Environment = var.environment
-    ManagedBy   = "terraform"
-  }
+  tags = merge(
+    {
+      Project     = var.project
+      Environment = var.environment
+      ManagedBy   = "terraform"
+    },
+    var.tags
+  )
 
   oidc_issuer = replace(var.cluster_oidc_issuer_url, "https://", "")
 }
