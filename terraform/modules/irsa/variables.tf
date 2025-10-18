@@ -42,3 +42,9 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "policy_description" {
+  description = "Description for the S3 read policy attached to the IRSA role"
+  type        = string
+  default     = "Least-privilege S3 read access for the app pod"
+}
