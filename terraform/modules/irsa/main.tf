@@ -23,6 +23,9 @@ resource "aws_iam_role" "app" {
           Federated = var.oidc_provider_arn
         }
         Action = "sts:AssumeRoleWithWebIdentity"
+        # Both :aud and :sub conditions are required.
+        # :aud ensures the token was issued for STS; :sub scopes it to one ServiceAccount.
+        # A trust policy with only :aud would allow any pod in any namespace to assume the role.
         Condition = {
           StringEquals = {
             "${local.oidc_issuer}:aud" = "sts.amazonaws.com"
