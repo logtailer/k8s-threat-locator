@@ -12,7 +12,8 @@ locals {
 }
 
 resource "aws_iam_role" "app" {
-  name = "${var.cluster_name}-irsa-app"
+  name                  = "${var.cluster_name}-irsa-app"
+  force_detach_policies = true
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
