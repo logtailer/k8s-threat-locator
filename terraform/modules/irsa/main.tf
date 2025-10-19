@@ -37,7 +37,9 @@ resource "aws_iam_role" "app" {
     ]
   })
 
-  tags = local.tags
+  tags = merge(local.tags, {
+    Name = "${var.cluster_name}-irsa-app"
+  })
 }
 
 resource "aws_iam_policy" "app_s3" {
