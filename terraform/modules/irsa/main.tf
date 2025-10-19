@@ -42,7 +42,7 @@ resource "aws_iam_role" "app" {
 
 resource "aws_iam_policy" "app_s3" {
   name        = "${var.cluster_name}-irsa-app-s3"
-  description = "Least-privilege S3 read access for the app pod"
+  description = var.policy_description
 
   policy = jsonencode({
     Version = "2012-10-17"
