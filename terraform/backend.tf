@@ -5,5 +5,6 @@ terraform {
     region         = "us-east-1"
     encrypt        = true
     dynamodb_table = "k8s-threat-locator-tflock"
+    # kms_key_id is optional — set to your CMK ARN for customer-managed encryption
   }
 }
