@@ -73,7 +73,7 @@ terraform plan -out=tfplan
 terraform apply tfplan
 ```
 
-> **Warning:** `terraform destroy` will delete the EKS cluster and all node groups. Make sure no workloads depend on the cluster before running it.
+> **Warning:** `terraform destroy` will delete the EKS cluster, node groups, VPC, and all associated resources. This is irreversible. Drain and delete all workloads first and ensure the S3 state bucket is backed up.
 
 ## Prerequisites
 
