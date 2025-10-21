@@ -27,3 +27,8 @@ output "irsa_role_arn" {
   description = "IAM role ARN for IRSA — set this as the eks.amazonaws.com/role-arn annotation on the ServiceAccount"
   value       = module.irsa.role_arn
 }
+
+output "oidc_provider_arn" {
+  description = "ARN of the EKS OIDC provider"
+  value       = module.eks.oidc_provider_arn
+}
