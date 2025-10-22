@@ -21,6 +21,7 @@ env/
 *.tfstate.*
 *.tfvars
 .terraform.lock.hcl
+*.tfplan
 
 # IDE
 .DS_Store
