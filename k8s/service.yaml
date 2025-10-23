@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: items-api
+  namespace: threat-demo
+  labels:
+    app: items-api
+spec:
+  type: ClusterIP
+  selector:
+    app: items-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: 5000
+      protocol: TCP
