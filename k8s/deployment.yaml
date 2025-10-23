@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: items-api
+  namespace: threat-demo
+  labels:
+    app: items-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: items-api
+  template:
+    metadata:
+      labels:
+        app: items-api
+    spec:
+      serviceAccountName: app-sa
+      containers:
+        - name: items-api
+          image: <ECR_REPO_URL>/k8s-threat-locator:<IMAGE_TAG>
+          ports:
+            - containerPort: 5000
