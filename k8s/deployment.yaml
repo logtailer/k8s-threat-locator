@@ -21,3 +21,9 @@ spec:
           image: <ECR_REPO_URL>/k8s-threat-locator:<IMAGE_TAG>
           ports:
             - containerPort: 5000
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 15
