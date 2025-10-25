@@ -16,6 +16,7 @@ spec:
         app: items-api
     spec:
       serviceAccountName: app-sa
+      terminationGracePeriodSeconds: 30
       containers:
         - name: items-api
           # intentionally runs as root to demonstrate Falco shell-in-container detection
