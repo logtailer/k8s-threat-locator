@@ -10,6 +10,7 @@ spec:
   types:
     - Egress
   egress:
+    # Both UDP and TCP port 53 — DNS uses UDP but falls back to TCP for large responses
     - action: Allow
       protocol: UDP
       destination:
