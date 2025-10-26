@@ -6,6 +6,7 @@ metadata:
 spec:
   order: 200
   # Lower order value = higher priority in Calico; deny-all sits at 1000
+  # Targets only the items-api pods in this namespace
   selector: app == "items-api"
   types:
     - Ingress
