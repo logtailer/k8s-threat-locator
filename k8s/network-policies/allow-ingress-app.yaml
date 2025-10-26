@@ -13,6 +13,7 @@ spec:
     - action: Allow
       protocol: TCP
       source:
+        # Only pods with label role=frontend can reach the API on port 5000
         selector: role == "frontend"
       destination:
         ports:
