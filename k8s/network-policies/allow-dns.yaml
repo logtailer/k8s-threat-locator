@@ -5,6 +5,7 @@ metadata:
   namespace: threat-demo
 spec:
   order: 100
+  # all() targets every pod in the namespace — DNS is required for all pods
   selector: all()
   types:
     - Egress
