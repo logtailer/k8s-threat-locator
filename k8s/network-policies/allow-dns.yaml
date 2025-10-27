@@ -1,0 +1,23 @@
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: threat-demo
+spec:
+  order: 100
+  selector: all()
+  types:
+    - Egress
+  egress:
+    - action: Allow
+      protocol: UDP
+      destination:
+        namespaceSelector: k8s-app == "kube-dns"
+        ports:
+          - 53
+    - action: Allow
+      protocol: TCP
+      destination:
+        namespaceSelector: k8s-app == "kube-dns"
+        ports:
+          - 53
