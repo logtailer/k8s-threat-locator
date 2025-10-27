@@ -1,0 +1,13 @@
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: threat-demo
+spec:
+  order: 1000
+  selector: all()
+  types:
+    - Ingress
+    - Egress
+  ingress: []
+  egress: []
