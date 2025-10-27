@@ -1,0 +1,18 @@
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-items-api
+  namespace: threat-demo
+spec:
+  order: 200
+  selector: app == "items-api"
+  types:
+    - Ingress
+  ingress:
+    - action: Allow
+      protocol: TCP
+      source:
+        selector: role == "frontend"
+      destination:
+        ports:
+          - 5000
