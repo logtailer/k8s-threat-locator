@@ -12,12 +12,12 @@ spec:
     - action: Allow
       protocol: UDP
       destination:
-        namespaceSelector: k8s-app == "kube-dns"
+        namespaceSelector: has(k8s-app) && k8s-app == "kube-dns"
         ports:
           - 53
     - action: Allow
       protocol: TCP
       destination:
-        namespaceSelector: k8s-app == "kube-dns"
+        namespaceSelector: has(k8s-app) && k8s-app == "kube-dns"
         ports:
           - 53
