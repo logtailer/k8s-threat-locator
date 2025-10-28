@@ -1,0 +1,19 @@
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-items-api
+  namespace: threat-demo
+spec:
+  order: 200
+  selector: app == "items-api"
+  types:
+    - Egress
+  egress:
+    # Allow HTTPS to AWS STS and S3 endpoints (required for IRSA token exchange)
+    - action: Allow
+      protocol: TCP
+      destination:
+        nets:
+          - "0.0.0.0/0"
+        ports:
+          - 443
