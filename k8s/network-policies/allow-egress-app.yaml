@@ -5,6 +5,7 @@ metadata:
   namespace: threat-demo
 spec:
   order: 200
+  # Lower order value = higher priority in Calico; deny-all sits at 1000
   selector: app == "items-api"
   types:
     - Egress
