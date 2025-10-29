@@ -34,6 +34,29 @@ Developer → GitHub → CI (Trivy scans image → fails on critical CVEs)
 | `lambda/` | Python Lambda for automated pod quarantine |
 | `.github/workflows/` | CI pipeline with Trivy vulnerability gate |
 
+## Network Security (Calico)
+
+The cluster uses Calico as the CNI plugin. All pods in the `threat-demo` namespace are subject to a default-deny posture enforced by a Calico `NetworkPolicy` with `order: 1000`. Explicit allow policies with lower order values are then layered on top:
+
+| Policy | Order | Purpose |
+|--------|-------|---------|
+| `default-deny` | 1000 | Block all ingress and egress unless explicitly allowed |
+| `allow-dns-egress` | 100 | Allow UDP/TCP port 53 to kube-dns |
+| `allow-ingress-items-api` | 200 | Allow port 5000 ingress from `role=frontend` pods |
+| `allow-egress-items-api` | 200 | Allow HTTPS (443) egress to AWS STS/S3 for IRSA |
+
+Apply policies in this order to avoid locking yourself out during initial deployment:
+
+```bash
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/network-policies/allow-dns.yaml
+kubectl apply -f k8s/network-policies/allow-ingress-app.yaml
+kubectl apply -f k8s/network-policies/allow-egress-app.yaml
+kubectl apply -f k8s/network-policies/default-deny.yaml  # apply deny last
+```
+
+> **Requires Calico** installed as the cluster CNI. The `crd.projectcalico.org/v1` API version is Calico-specific and will not work with the standard `networking.k8s.io/v1` NetworkPolicy.
+
 ## IRSA (IAM Roles for Service Accounts)
 
 Pods in the `threat-demo` namespace are granted AWS credentials through IRSA rather than instance profiles. The flow:
