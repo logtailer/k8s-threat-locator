@@ -5,6 +5,7 @@ metadata:
   namespace: threat-demo
 spec:
   order: 1000
+  # all() selects every pod in the namespace defined by the metadata.namespace field above
   selector: all()
   types:
     - Ingress
