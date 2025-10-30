@@ -4,3 +4,5 @@ metadata:
   name: threat-demo
   labels:
     name: threat-demo
+    # Calico namespace selectors match on these labels
+    kubernetes.io/metadata.name: threat-demo
