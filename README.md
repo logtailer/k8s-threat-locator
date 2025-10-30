@@ -45,7 +45,7 @@ The cluster uses Calico as the CNI plugin. All pods in the `threat-demo` namespa
 | `allow-ingress-items-api` | 200 | Allow port 5000 ingress from `role=frontend` pods |
 | `allow-egress-items-api` | 200 | Allow HTTPS (443) egress to AWS STS/S3 for IRSA |
 
-Apply policies in this order to avoid locking yourself out during initial deployment:
+Apply policies in this order to avoid a connectivity outage during initial deployment (allow rules must be in place before the deny catches up):
 
 ```bash
 kubectl apply -f k8s/namespace.yaml
