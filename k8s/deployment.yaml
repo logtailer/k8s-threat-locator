@@ -18,6 +18,7 @@ spec:
       serviceAccountName: app-sa
       containers:
         - name: items-api
+          # intentionally runs as root to demonstrate Falco shell-in-container detection
           image: <ECR_REPO_URL>/k8s-threat-locator:<IMAGE_TAG>
           ports:
             - containerPort: 5000
