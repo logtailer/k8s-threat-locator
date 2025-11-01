@@ -3,6 +3,7 @@
 #          helm install falco falcosecurity/falco -n falco --create-namespace -f falco/values.yaml
 
 driver:
+  # module: kernel module (default). Alternative: ebpf (more compatible with newer kernels).
   kind: module
 
 falco:
