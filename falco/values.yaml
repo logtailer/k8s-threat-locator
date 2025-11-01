@@ -12,6 +12,8 @@ falco:
   log_level: info
   log_stderr: true
   output_timeout: 2000
+  grpc:
+    enabled: false
 
 falcosidekick:
   enabled: true
