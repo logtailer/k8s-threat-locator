@@ -12,3 +12,4 @@ spec:
     - Egress
   ingress: []
   egress: []
+  # ingress and egress are empty arrays — this is intentional, blocking all traffic
