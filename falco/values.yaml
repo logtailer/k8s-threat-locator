@@ -22,6 +22,7 @@ falcosidekick:
       sns:
         # Replace with your SNS topic ARN after deploying the Lambda stack
         topicarn: ""
+        minimumpriority: "error"
       region: "us-east-1"
     debug: false
 
