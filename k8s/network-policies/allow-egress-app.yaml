@@ -20,3 +20,4 @@ spec:
           - "0.0.0.0/0"
         ports:
           - 443
+    # Deny all other egress — falls through to default-deny at order 1000
