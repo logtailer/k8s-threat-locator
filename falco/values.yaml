@@ -1,0 +1,13 @@
+# Helm values for falcosecurity/falco chart v4.x
+# Install: helm repo add falcosecurity https://falcosecurity.github.io/charts
+#          helm install falco falcosecurity/falco -n falco --create-namespace -f falco/values.yaml
+
+driver:
+  kind: module
+
+falco:
+  json_output: true
+  json_include_output_property: true
+  log_level: info
+  log_stderr: true
+  output_timeout: 2000
