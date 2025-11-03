@@ -11,3 +11,14 @@ falco:
   log_level: info
   log_stderr: true
   output_timeout: 2000
+
+falcosidekick:
+  enabled: true
+  config:
+    aws:
+      sns:
+        # Replace with your SNS topic ARN after deploying the Lambda stack
+        topicarn: ""
+      region: "us-east-1"
+    debug: false
+
