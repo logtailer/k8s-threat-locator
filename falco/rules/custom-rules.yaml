@@ -1,0 +1,13 @@
+- rule: shell_in_container
+  desc: Detect a shell binary being spawned inside a running container
+  condition: >
+    spawned_process
+    and container
+    and proc.name in (shell_binaries)
+  output: >
+    Shell spawned in container
+    (user=%user.name container_id=%container.id container_name=%container.name
+    pod=%k8s.pod.name ns=%k8s.ns.name image=%container.image.repository
+    pod_uid=%k8s.pod.uid cmd=%proc.cmdline)
+  priority: WARNING
+  tags: [shell, container, mitre_execution]
