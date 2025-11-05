@@ -9,7 +9,7 @@
     (user=%user.name container_id=%container.id container_name=%container.name
     pod=%k8s.pod.name ns=%k8s.ns.name image=%container.image.repository
     pod_uid=%k8s.pod.uid cmd=%proc.cmdline)
-  priority: WARNING
+  priority: WARNING  # escalate to ERROR if used in automated response pipelines
   tags: [shell, container, mitre_execution]
 
 - rule: write_to_etc
@@ -23,7 +23,7 @@
     (user=%user.name file=%fd.name container_id=%container.id
     container_name=%container.name pod=%k8s.pod.name ns=%k8s.ns.name
     image=%container.image.repository pod_uid=%k8s.pod.uid)
-  priority: ERROR
+  priority: ERROR  # ERROR triggers the SNS → Lambda quarantine response
   tags: [filesystem, container, mitre_persistence]
 
 - rule: unexpected_outbound_connection
