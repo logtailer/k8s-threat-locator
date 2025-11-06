@@ -40,4 +40,9 @@ affinity:
         - matchExpressions:
             - key: eks.amazonaws.com/nodegroup
               operator: Exists
+            # exclude Fargate — Falco requires kernel access and cannot run on Fargate
+            - key: eks.amazonaws.com/compute-type
+              operator: NotIn
+              values:
+                - fargate
 
