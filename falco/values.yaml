@@ -1,4 +1,4 @@
-# Helm values for falcosecurity/falco chart v4.x
+# Helm values for falcosecurity/falco chart v4.3.0
 # Install: helm repo add falcosecurity https://falcosecurity.github.io/charts
 #          helm install falco falcosecurity/falco -n falco --create-namespace -f falco/values.yaml
 
