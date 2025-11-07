@@ -34,6 +34,45 @@ Developer → GitHub → CI (Trivy scans image → fails on critical CVEs)
 | `lambda/` | Python Lambda for automated pod quarantine |
 | `.github/workflows/` | CI pipeline with Trivy vulnerability gate |
 
+## Runtime Threat Detection (Falco)
+
+Falco runs as a DaemonSet on every worker node and streams kernel syscall events to detect malicious activity inside running containers.
+
+### Installation
+
+```bash
+helm repo add falcosecurity https://falcosecurity.github.io/charts
+helm repo update
+
+kubectl create namespace falco
+
+helm install falco falcosecurity/falco \
+  --namespace falco \
+  --version 4.3.0 \
+  -f falco/values.yaml \
+  --set-file falco.rules_file[0]=falco/rules/custom-rules.yaml
+```
+
+### Custom Rules
+
+| Rule | Trigger | Priority |
+|------|---------|---------|
+| `shell_in_container` | Shell binary spawned in container (e.g. `kubectl exec ... -- sh`) | WARNING |
+| `write_to_etc` | Any file opened for write under `/etc/` inside a container | ERROR |
+| `unexpected_outbound_connection` | Outbound connection from `items-api` on port other than 443/53/5000 | WARNING |
+
+### Testing Rules
+
+```bash
+# trigger shell_in_container
+kubectl exec -it -n threat-demo deploy/items-api -- /bin/sh
+
+# trigger write_to_etc
+kubectl exec -n threat-demo deploy/items-api -- sh -c "echo test > /etc/pwned"
+```
+
+Falco logs are JSON-formatted and forwarded to SNS via Falcosidekick when `falcosidekick.config.aws.sns.topicarn` is set.
+
 ## Network Security (Calico)
 
 The cluster uses Calico as the CNI plugin. All pods in the `threat-demo` namespace are subject to a default-deny posture enforced by a Calico `NetworkPolicy` with `order: 1000`. Explicit allow policies with lower order values are then layered on top:
