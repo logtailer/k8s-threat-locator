@@ -73,6 +73,8 @@ kubectl exec -n threat-demo deploy/items-api -- sh -c "echo test > /etc/pwned"
 
 Falco logs are JSON-formatted and forwarded to SNS via Falcosidekick when `falcosidekick.config.aws.sns.topicarn` is set.
 
+> **Note:** Falco requires privileged access to the host kernel. The DaemonSet pods run with elevated permissions by design. The `falco` namespace should have strict RBAC to limit who can read Falco alerts.
+
 ## Network Security (Calico)
 
 The cluster uses Calico as the CNI plugin. All pods in the `threat-demo` namespace are subject to a default-deny posture enforced by a Calico `NetworkPolicy` with `order: 1000`. Explicit allow policies with lower order values are then layered on top:
