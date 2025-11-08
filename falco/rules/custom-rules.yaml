@@ -15,6 +15,7 @@
 
 - rule: write_to_etc
   desc: Detect any file write attempt under /etc/ inside a container
+  enabled: true
   condition: >
     open_write
     and container
