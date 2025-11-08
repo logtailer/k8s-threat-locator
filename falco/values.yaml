@@ -25,6 +25,7 @@ falcosidekick:
         minimumpriority: "error"
       region: "us-east-1"
     debug: false
+    nooutput: false
 
 tolerations:
   - key: node-role.kubernetes.io/control-plane
