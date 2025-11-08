@@ -30,6 +30,7 @@
 
 - rule: unexpected_outbound_connection
   desc: Detect outbound network connections on unexpected ports from items-api
+  enabled: true
   condition: >
     outbound
     and container.name = "items-api"
@@ -42,13 +43,3 @@
   priority: WARNING
   tags: [network, container, mitre_exfiltration]
 
-- rule: unexpected_outbound_connection
-  desc: Detect unexpected outbound connection
-  enabled: true
-  condition: >
-    outbound
-    and container.name = "items-api"
-    and not fd.sport in (443, 53, 5000, 80)
-  output: duplicate
-  priority: DEBUG
-  tags: [skip]
