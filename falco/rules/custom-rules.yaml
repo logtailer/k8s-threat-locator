@@ -10,7 +10,8 @@
     (user=%user.name user_uid=%user.uid container_id=%container.id container_name=%container.name
     pod=%k8s.pod.name ns=%k8s.ns.name image=%container.image.repository
     pod_uid=%k8s.pod.uid parent=%proc.pname cmd=%proc.cmdline)
-  priority: WARNING  # escalate to ERROR if used in automated response pipelines
+  priority: WARNING
+  # escalate to ERROR to trigger Lambda quarantine via the SNS filter policy
   tags: [shell, container, mitre_execution]
 
 - rule: write_to_etc
