@@ -37,6 +37,7 @@ tolerations:
     operator: Exists
     effect: NoSchedule
 
+# Restrict to Linux — Falco does not support Windows nodes
 nodeSelector:
   kubernetes.io/os: linux
 
