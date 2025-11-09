@@ -29,6 +29,7 @@ falcosidekick:
     nooutput: false
 
 tolerations:
+  # Allow scheduling on control-plane / master nodes if present
   - key: node-role.kubernetes.io/control-plane
     operator: Exists
     effect: NoSchedule
