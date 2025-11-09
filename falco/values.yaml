@@ -9,6 +9,7 @@ driver:
 falco:
   json_output: true
   json_include_output_property: true
+  json_include_tags_property: true
   log_level: info
   log_stderr: true
   output_timeout: 2000
