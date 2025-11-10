@@ -74,6 +74,8 @@ kubectl exec -n threat-demo deploy/items-api -- sh -c "echo test > /etc/pwned"
 Falco logs are JSON-formatted and forwarded to SNS via Falcosidekick when `falcosidekick.config.aws.sns.topicarn` is set.
 
 > **Note:** Falco requires privileged access to the host kernel. The DaemonSet pods run with elevated permissions by design. The `falco` namespace should have strict RBAC to limit who can read Falco alerts.
+>
+> Create the namespace before running Helm: `kubectl create namespace falco`
 
 ## Network Security (Calico)
 
