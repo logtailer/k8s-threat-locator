@@ -9,7 +9,7 @@
     Shell spawned in container
     (user=%user.name user_uid=%user.uid container_id=%container.id container_name=%container.name
     pod=%k8s.pod.name ns=%k8s.ns.name image=%container.image.repository
-    pod_uid=%k8s.pod.uid parent=%proc.pname cmd=%proc.cmdline)
+    image_tag=%container.image.tag pod_uid=%k8s.pod.uid parent=%proc.pname cmd=%proc.cmdline)
   priority: ERROR
   exceptions: []
   tags: [shell, container, mitre_execution]
