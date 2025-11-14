@@ -91,6 +91,8 @@ Falco logs are JSON-formatted and forwarded to SNS via Falcosidekick when `falco
 >
 > Create the namespace before running Helm: `kubectl create namespace falco`
 
+> **Kernel module compatibility:** The default `driver.kind: module` requires the EKS worker node AMI to include kernel headers. Amazon Linux 2 (AL2_x86_64) includes them. If you use a custom AMI or Bottlerocket nodes, switch to `driver.kind: ebpf` in `falco/values.yaml`.
+
 ## Network Security (Calico)
 
 The cluster uses Calico as the CNI plugin. All pods in the `threat-demo` namespace are subject to a default-deny posture enforced by a Calico `NetworkPolicy` with `order: 1000`. Explicit allow policies with lower order values are then layered on top:
