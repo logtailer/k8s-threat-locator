@@ -1,3 +1,6 @@
+- macro: items_api_container
+  condition: container.name = "items-api"
+
 - rule: shell_in_container
   desc: Detect a shell binary being spawned inside a running container
   condition: >
@@ -36,7 +39,7 @@
   enabled: true
   condition: >
     outbound
-    and container.name = "items-api"
+    and items_api_container
     and not fd.sport in (443, 53, 5000, 80)
     and fd.rport > 0
     and not fd.rip in (169.254.169.254)
