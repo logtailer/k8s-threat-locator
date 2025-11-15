@@ -18,6 +18,7 @@ falco:
 
 falcosidekick:
   enabled: true
+  replicaCount: 2
   config:
     aws:
       sns:
