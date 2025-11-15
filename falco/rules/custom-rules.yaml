@@ -21,6 +21,7 @@
     open_write
     and container
     and fd.name startswith /etc/
+    and not proc.name in (package_mgmt_binaries)
   output: >
     Write to /etc detected in container
     (user=%user.name file=%fd.name container_id=%container.id
