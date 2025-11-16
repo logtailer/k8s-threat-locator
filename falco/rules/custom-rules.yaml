@@ -39,6 +39,7 @@
     outbound
     and container.name = "items-api"
     and not fd.sport in (443, 53, 5000, 80)
+    and fd.rport > 0
   output: >
     Unexpected outbound connection from items-api
     (user=%user.name dest_ip=%fd.rip dest_port=%fd.rport
