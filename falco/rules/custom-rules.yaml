@@ -29,6 +29,7 @@
     container_name=%container.name pod=%k8s.pod.name ns=%k8s.ns.name
     image=%container.image.repository pod_uid=%k8s.pod.uid)
   priority: ERROR  # ERROR triggers the SNS → Lambda quarantine response
+  exceptions: []
   tags: [filesystem, container, mitre_persistence]
 
 - rule: unexpected_outbound_connection
