@@ -165,6 +165,8 @@ terraform apply tfplan
 
 ## Automated Incident Response (Lambda)
 
+> **Design rationale:** The Lambda uses the `kubernetes` Python client (not `kubectl`) to apply the quarantine policy. This avoids bundling a binary in the deployment package, and the Python client handles kubeconfig parsing and API server communication natively — more robust than shelling out to `kubectl` in a subprocess.
+
 When Falco fires an `ERROR` or `CRITICAL` alert, Falcosidekick forwards the JSON payload to an SNS topic. A Lambda function subscribed to that topic:
 
 1. Parses the Falco alert and extracts `k8s.pod.name` and `k8s.ns.name` from `output_fields`
