@@ -22,6 +22,13 @@ spec:
     spec:
       serviceAccountName: app-sa
       terminationGracePeriodSeconds: 30
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: items-api
       containers:
         - name: items-api
           # intentionally runs as root to demonstrate Falco shell-in-container detection
