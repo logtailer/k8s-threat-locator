@@ -230,7 +230,18 @@ aws s3 cp ~/.kube/config s3://<your-kubeconfig-bucket>/kubeconfig
 - Helm >= 3.x
 - Docker (for local builds)
 - AWS SAM CLI (for Lambda deployment)
+- Python 3.11+ (for local Lambda testing)
 - pre-commit (optional, for local linting: `pip install pre-commit && pre-commit install`)
+
+The Lambda also requires a kubeconfig uploaded to S3 before deployment:
+
+```bash
+aws s3api create-bucket --bucket <your-kubeconfig-bucket> --region us-east-1
+aws s3api put-bucket-versioning \
+  --bucket <your-kubeconfig-bucket> \
+  --versioning-configuration Status=Enabled
+aws s3 cp ~/.kube/config s3://<your-kubeconfig-bucket>/kubeconfig
+```
 
 ## API Endpoints
 
