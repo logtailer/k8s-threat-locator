@@ -12,6 +12,7 @@ falco:
   json_include_tags_property: true
   log_level: info
   log_stderr: true
+  priority: debug
   output_timeout: 2000
   buffered_outputs: false
   grpc:
