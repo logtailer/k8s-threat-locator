@@ -402,6 +402,9 @@ kubectl delete networkpolicy "quarantine-$POD" -n threat-demo
 **Terraform apply fails on EKS OIDC**
 - The `tls_certificate` data source requires internet access to the OIDC endpoint. Ensure the Terraform runner can reach `oidc.eks.<region>.amazonaws.com`
 
+**Resource quota blocks pod creation**
+- If new pods are stuck in `Pending` with a quota exceeded event, check: `kubectl describe resourcequota -n threat-demo`. Adjust `pods` or `limits.cpu` in `k8s/resourcequota.yaml` and re-apply.
+
 **pod receives quarantine label but policy selector does not match**
 - The quarantine NetworkPolicy targets pods with `quarantine: "true"` via `matchLabels`. Confirm the pod was labelled: `kubectl get pod <name> -n threat-demo --show-labels`
 
