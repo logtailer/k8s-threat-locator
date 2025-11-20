@@ -50,5 +50,15 @@ def create_item():
     return jsonify(item), 201
 
 
+@app.errorhandler(405)
+def method_not_allowed(e):
+    return jsonify({"error": "method not allowed"}), 405
+
+
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({"error": "not found"}), 404
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
