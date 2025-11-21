@@ -6,5 +6,6 @@ metadata:
     name: threat-demo
     # Calico namespace selectors match on these labels
     kubernetes.io/metadata.name: threat-demo
+    environment: demo
   annotations:
     purpose: "Threat detection demo namespace — intentionally permissive for Falco testing"
