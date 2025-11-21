@@ -178,6 +178,16 @@ When Falco fires an `ERROR` or `CRITICAL` alert, Falcosidekick forwards the JSON
 
 The SNS subscription uses a `FilterPolicy` so only `ERROR` and `CRITICAL` priority alerts invoke the Lambda — `WARNING` alerts (e.g. `shell_in_container`) are logged by Falco but do not trigger automatic isolation.
 
+## Lambda Prerequisites
+
+Before deploying Lambda, the following must exist:
+
+1. The SNS topic ARN output from Falcosidekick configuration
+2. An S3 bucket with the kubeconfig uploaded (see [Prerequisites](#prerequisites))
+3. The EKS cluster must be reachable from the Lambda's VPC — either via the private API endpoint with VPC peering, or by placing the Lambda in the same VPC as the cluster
+
+The Lambda execution role needs `s3:GetObject` on the exact kubeconfig key — scoped in `lambda/template.yaml`. It does **not** need `eks:*` permissions; access is gated by the kubeconfig itself.
+
 ## Lambda Deployment (SAM)
 
 The `lambda/` directory is a SAM application. Deploy it after the EKS cluster and SNS topic exist.
