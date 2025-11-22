@@ -27,6 +27,7 @@ falcosidekick:
         topicarn: ""
         minimumpriority: "error"
       region: "us-east-1"
+      # roleName: "" # optional: IAM role for falcosidekick to assume when calling SNS
     debug: false
     nooutput: false
 
