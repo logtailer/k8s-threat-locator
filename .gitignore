@@ -47,3 +47,7 @@ notes.md
 
 # AWS SAM build output (may appear in project root or lambda/)
 */.aws-sam/
+
+# Lambda packaging artifacts
+lambda/__pycache__/
+lambda/*.pyc
