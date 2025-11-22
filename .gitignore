@@ -51,3 +51,7 @@ notes.md
 # Lambda packaging artifacts
 lambda/__pycache__/
 lambda/*.pyc
+
+# Python type checking
+.pytype/
+.pyre/
