@@ -17,3 +17,6 @@ directory:
   - k8s
   - terraform
   - lambda
+
+compact: true
+quiet: false
