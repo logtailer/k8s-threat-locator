@@ -20,3 +20,7 @@ directory:
 
 compact: true
 quiet: false
+
+# Suppress false positive on SNS topic ARN placeholder in Falco values
+skip-path:
+  - falco/values.yaml
