@@ -1,0 +1,5 @@
+# boto3 is available in the Lambda runtime; listed here for local dev/testing
+boto3
+
+# Kubernetes Python client — used to apply quarantine NetworkPolicy
+kubernetes==29.0.0
