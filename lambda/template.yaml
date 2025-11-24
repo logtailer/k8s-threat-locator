@@ -1,0 +1,26 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+
+Description: >
+  k8s-threat-locator incident responder — triggered by Falco alerts via SNS,
+  applies a quarantine NetworkPolicy to isolate the offending pod.
+
+Globals:
+  Function:
+    Runtime: python3.11
+    MemorySize: 128
+    Timeout: 30
+
+Parameters:
+  SnsTopicArn:
+    Type: String
+    Description: ARN of the SNS topic that Falcosidekick publishes to
+
+  KubeconfigBucket:
+    Type: String
+    Description: S3 bucket name where the kubeconfig is stored
+
+  KubeconfigKey:
+    Type: String
+    Default: kubeconfig
+    Description: S3 object key for the kubeconfig file
