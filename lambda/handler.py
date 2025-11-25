@@ -29,7 +29,15 @@ def handler(event, context):
             logger.warning("Could not parse SNS message as JSON: %s", sns_message)
             continue
 
-        logger.info("Falco alert: rule=%s priority=%s",
-                    alert.get("rule"), alert.get("priority"))
+        output_fields = alert.get("output_fields", {})
+        pod_name = output_fields.get("k8s.pod.name")
+        namespace = output_fields.get("k8s.ns.name")
+
+        if not pod_name or not namespace:
+            logger.warning("Alert missing pod/namespace fields — skipping. fields=%s", output_fields)
+            continue
+
+        logger.info("Falco alert: rule=%s priority=%s pod=%s ns=%s",
+                    alert.get("rule"), alert.get("priority"), pod_name, namespace)
 
     return {"statusCode": 200, "body": "ok"}
