@@ -3,6 +3,7 @@ import logging
 import os
 
 import boto3
+from kubernetes import client, config
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -10,6 +11,11 @@ logger.setLevel(logging.INFO)
 KUBECONFIG_BUCKET = os.environ.get("KUBECONFIG_BUCKET", "")
 KUBECONFIG_KEY = os.environ.get("KUBECONFIG_KEY", "kubeconfig")
 KUBECONFIG_PATH = "/tmp/kubeconfig"
+
+
+def _get_k8s_clients():
+    config.load_kube_config(config_file=KUBECONFIG_PATH)
+    return client.CoreV1Api(), client.NetworkingV1Api()
 
 
 def _download_kubeconfig():
