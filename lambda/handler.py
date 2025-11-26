@@ -18,6 +18,26 @@ def _get_k8s_clients():
     return client.CoreV1Api(), client.NetworkingV1Api()
 
 
+def _build_quarantine_policy(pod_name: str, namespace: str) -> client.V1NetworkPolicy:
+    return client.V1NetworkPolicy(
+        api_version="networking.k8s.io/v1",
+        kind="NetworkPolicy",
+        metadata=client.V1ObjectMeta(
+            name=f"quarantine-{pod_name}",
+            namespace=namespace,
+            labels={"quarantine": "true", "managed-by": "k8s-threat-locator"},
+        ),
+        spec=client.V1NetworkPolicySpec(
+            pod_selector=client.V1LabelSelector(
+                match_labels={"quarantine": "true"}
+            ),
+            policy_types=["Ingress", "Egress"],
+            ingress=[],
+            egress=[],
+        ),
+    )
+
+
 def _download_kubeconfig():
     s3 = boto3.client("s3")
     s3.download_file(KUBECONFIG_BUCKET, KUBECONFIG_KEY, KUBECONFIG_PATH)
