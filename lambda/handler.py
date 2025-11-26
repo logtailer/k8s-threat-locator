@@ -77,6 +77,19 @@ def handler(event, context):
                 body={"metadata": {"labels": {"quarantine": "true"}}},
             )
             logger.info("Labelled pod %s/%s with quarantine=true", namespace, pod_name)
+
+            policy = _build_quarantine_policy(pod_name, namespace)
+            try:
+                networking_v1.create_namespaced_network_policy(
+                    namespace=namespace,
+                    body=policy,
+                )
+                logger.info("Quarantine NetworkPolicy applied for pod %s/%s", namespace, pod_name)
+            except client.ApiException as exc:
+                if exc.status == 409:
+                    logger.info("Quarantine policy already exists for pod %s/%s — skipping", namespace, pod_name)
+                else:
+                    raise
         finally:
             if os.path.exists(KUBECONFIG_PATH):
                 os.remove(KUBECONFIG_PATH)
