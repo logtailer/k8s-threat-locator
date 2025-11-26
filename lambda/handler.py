@@ -66,4 +66,19 @@ def handler(event, context):
         logger.info("Falco alert: rule=%s priority=%s pod=%s ns=%s",
                     alert.get("rule"), alert.get("priority"), pod_name, namespace)
 
+        try:
+            _download_kubeconfig()
+            core_v1, networking_v1 = _get_k8s_clients()
+
+            # Label the pod so the quarantine NetworkPolicy selector can target it
+            core_v1.patch_namespaced_pod(
+                name=pod_name,
+                namespace=namespace,
+                body={"metadata": {"labels": {"quarantine": "true"}}},
+            )
+            logger.info("Labelled pod %s/%s with quarantine=true", namespace, pod_name)
+        finally:
+            if os.path.exists(KUBECONFIG_PATH):
+                os.remove(KUBECONFIG_PATH)
+
     return {"statusCode": 200, "body": "ok"}
