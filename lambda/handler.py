@@ -70,6 +70,7 @@ def handler(event, context):
             _download_kubeconfig()
             core_v1, networking_v1 = _get_k8s_clients()
 
+
             # Label the pod so the quarantine NetworkPolicy selector can target it
             core_v1.patch_namespaced_pod(
                 name=pod_name,
@@ -87,7 +88,7 @@ def handler(event, context):
                 logger.info("Quarantine NetworkPolicy applied for pod %s/%s", namespace, pod_name)
             except client.ApiException as exc:
                 if exc.status == 409:
-                    logger.info("Quarantine policy already exists for pod %s/%s — skipping", namespace, pod_name)
+                    logger.info("Quarantine policy already exists for pod %s/%s — pod is already isolated", namespace, pod_name)
                 else:
                     raise
         finally:
