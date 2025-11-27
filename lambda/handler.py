@@ -66,6 +66,10 @@ def handler(event, context):
         logger.info("Falco alert: rule=%s priority=%s pod=%s ns=%s",
                     alert.get("rule"), alert.get("priority"), pod_name, namespace)
 
+        if not pod_name or not namespace:
+            logger.warning("Cannot quarantine — pod_name=%r namespace=%r", pod_name, namespace)
+            continue
+
         try:
             _download_kubeconfig()
             core_v1, networking_v1 = _get_k8s_clients()
