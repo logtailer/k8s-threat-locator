@@ -95,8 +95,12 @@ def handler(event, context):
                     logger.info("Quarantine policy already exists for pod %s/%s — pod is already isolated", namespace, pod_name)
                 else:
                     raise
+        except Exception:
+            logger.exception("Unhandled error while processing alert for pod %s/%s", namespace, pod_name)
+            raise
         finally:
             if os.path.exists(KUBECONFIG_PATH):
                 os.remove(KUBECONFIG_PATH)
+                logger.debug("Cleaned up kubeconfig from %s", KUBECONFIG_PATH)
 
     return {"statusCode": 200, "body": "ok"}
