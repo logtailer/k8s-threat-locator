@@ -13,6 +13,7 @@ logger.setLevel(logging.INFO)
 KUBECONFIG_BUCKET = os.environ.get("KUBECONFIG_BUCKET", "")
 KUBECONFIG_KEY = os.environ.get("KUBECONFIG_KEY", "kubeconfig")
 KUBECONFIG_PATH = "/tmp/kubeconfig"
+AWS_REGION = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
 
 
 def _emit_quarantine_metric(pod_name: str, namespace: str) -> None:
