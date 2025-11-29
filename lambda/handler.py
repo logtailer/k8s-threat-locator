@@ -17,7 +17,7 @@ AWS_REGION = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
 
 
 def _emit_quarantine_metric(pod_name: str, namespace: str) -> None:
-    cw = boto3.client("cloudwatch")
+    cw = boto3.client("cloudwatch", region_name=AWS_REGION)
     cw.put_metric_data(
         Namespace="k8s-threat-locator",
         MetricData=[
