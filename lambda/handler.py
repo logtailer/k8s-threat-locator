@@ -37,7 +37,8 @@ def _emit_quarantine_metric(pod_name: str, namespace: str) -> None:
 
 def _get_k8s_clients():
     config.load_kube_config(config_file=KUBECONFIG_PATH)
-    return client.CoreV1Api(), client.NetworkingV1Api()
+    k8s_client = client.ApiClient()
+    return client.CoreV1Api(k8s_client), client.NetworkingV1Api(k8s_client)
 
 
 def _build_quarantine_policy(pod_name: str, namespace: str) -> client.V1NetworkPolicy:
