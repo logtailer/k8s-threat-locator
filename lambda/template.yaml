@@ -91,4 +91,13 @@ Resources:
             Statement:
               - Effect: Allow
                 Action: cloudwatch:PutMetricData
+                # PutMetricData does not support resource-level permissions
                 Resource: "*"
+
+Outputs:
+  FunctionArn:
+    Description: ARN of the incident responder Lambda function
+    Value: !GetAtt IncidentResponderFunction.Arn
+  FunctionName:
+    Description: Name of the incident responder Lambda function
+    Value: !Ref IncidentResponderFunction
