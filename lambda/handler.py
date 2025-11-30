@@ -73,7 +73,7 @@ def _download_kubeconfig():
 
 
 def handler(event, context):
-    logger.info("Received event: %s", json.dumps(event))
+    logger.info("Received event with %d records", len(event.get("Records", [])))
 
     for record in event.get("Records", []):
         sns_message = record.get("Sns", {}).get("Message", "{}")
