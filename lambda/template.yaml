@@ -38,6 +38,7 @@ Resources:
       CodeUri: .
       Handler: handler.handler
       Description: Quarantines compromised Kubernetes pods on Falco alert
+      ReservedConcurrentExecutions: 10
       Role: !GetAtt IncidentResponderRole.Arn
       Environment:
         Variables:
