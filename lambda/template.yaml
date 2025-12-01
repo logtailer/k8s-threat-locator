@@ -24,3 +24,59 @@ Parameters:
     Type: String
     Default: kubeconfig
     Description: S3 object key for the kubeconfig file
+
+Resources:
+  IncidentResponderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: k8s-threat-locator-responder
+      CodeUri: .
+      Handler: handler.handler
+      Description: Quarantines compromised Kubernetes pods on Falco alert
+      Role: !GetAtt IncidentResponderRole.Arn
+      Environment:
+        Variables:
+          KUBECONFIG_BUCKET: !Ref KubeconfigBucket
+          KUBECONFIG_KEY: !Ref KubeconfigKey
+      Events:
+        FalcoAlert:
+          Type: SNS
+          Properties:
+            Topic: !Ref SnsTopicArn
+
+  IncidentResponderRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: k8s-threat-locator-lambda-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: S3KubeconfigRead
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub "arn:aws:s3:::${KubeconfigBucket}/${KubeconfigKey}"
+        - PolicyName: CloudWatchLogs
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/k8s-threat-locator-responder:*"
+        - PolicyName: CloudWatchMetrics
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: cloudwatch:PutMetricData
+                Resource: "*"
