@@ -13,6 +13,25 @@ KUBECONFIG_KEY = os.environ.get("KUBECONFIG_KEY", "kubeconfig")
 KUBECONFIG_PATH = "/tmp/kubeconfig"
 
 
+def _emit_quarantine_metric(pod_name: str, namespace: str) -> None:
+    cw = boto3.client("cloudwatch")
+    cw.put_metric_data(
+        Namespace="k8s-threat-locator",
+        MetricData=[
+            {
+                "MetricName": "QuarantineApplied",
+                "Dimensions": [
+                    {"Name": "Namespace", "Value": namespace},
+                    {"Name": "Pod", "Value": pod_name},
+                ],
+                "Value": 1,
+                "Unit": "Count",
+            }
+        ],
+    )
+    logger.info("Emitted QuarantineApplied metric for pod %s/%s", namespace, pod_name)
+
+
 def _get_k8s_clients():
     config.load_kube_config(config_file=KUBECONFIG_PATH)
     return client.CoreV1Api(), client.NetworkingV1Api()
@@ -90,6 +109,7 @@ def handler(event, context):
                     body=policy,
                 )
                 logger.info("Quarantine NetworkPolicy applied for pod %s/%s", namespace, pod_name)
+                _emit_quarantine_metric(pod_name, namespace)
             except client.ApiException as exc:
                 if exc.status == 409:
                     logger.info("Quarantine policy already exists for pod %s/%s — pod is already isolated", namespace, pod_name)
