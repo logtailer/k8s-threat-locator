@@ -141,6 +141,32 @@ terraform apply tfplan
 
 > **Warning:** `terraform destroy` will delete the EKS cluster, node groups, VPC, and all associated resources. This is irreversible. Drain and delete all workloads first and ensure the S3 state bucket is backed up.
 
+## Lambda Deployment (SAM)
+
+The `lambda/` directory is a SAM application. Deploy it after the EKS cluster and SNS topic exist.
+
+```bash
+# Package and deploy
+sam build --template lambda/template.yaml
+
+sam deploy \
+  --template lambda/template.yaml \
+  --stack-name k8s-threat-locator-lambda \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --parameter-overrides \
+    SnsTopicArn=<falcosidekick-sns-topic-arn> \
+    KubeconfigBucket=<your-kubeconfig-bucket> \
+    KubeconfigKey=kubeconfig
+```
+
+Upload the kubeconfig before deploying so the Lambda can reach the cluster:
+
+```bash
+aws s3 cp ~/.kube/config s3://<your-kubeconfig-bucket>/kubeconfig
+```
+
+> **Security note:** The kubeconfig grants cluster access. Restrict the S3 bucket to the Lambda execution role only and enable S3 server-side encryption.
+
 ## Prerequisites
 
 - AWS CLI configured with appropriate permissions
@@ -148,6 +174,7 @@ terraform apply tfplan
 - kubectl
 - Helm >= 3.x
 - Docker
+- AWS SAM CLI
 
 ## API Endpoints
 
