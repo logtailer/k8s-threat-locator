@@ -43,6 +43,10 @@ Resources:
           Type: SNS
           Properties:
             Topic: !Ref SnsTopicArn
+            FilterPolicy:
+              priority:
+                - ERROR
+                - CRITICAL
 
   IncidentResponderRole:
     Type: AWS::IAM::Role
