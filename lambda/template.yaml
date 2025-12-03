@@ -43,6 +43,7 @@ Resources:
         Variables:
           KUBECONFIG_BUCKET: !Ref KubeconfigBucket
           KUBECONFIG_KEY: !Ref KubeconfigKey
+          AWS_DEFAULT_REGION: !Ref AWS::Region
       Events:
         FalcoAlert:
           Type: SNS
