@@ -141,6 +141,19 @@ terraform apply tfplan
 
 > **Warning:** `terraform destroy` will delete the EKS cluster, node groups, VPC, and all associated resources. This is irreversible. Drain and delete all workloads first and ensure the S3 state bucket is backed up.
 
+## Automated Incident Response (Lambda)
+
+When Falco fires an `ERROR` or `CRITICAL` alert, Falcosidekick forwards the JSON payload to an SNS topic. A Lambda function subscribed to that topic:
+
+1. Parses the Falco alert and extracts `k8s.pod.name` and `k8s.ns.name` from `output_fields`
+2. Downloads a kubeconfig from S3 to `/tmp/kubeconfig`
+3. Labels the offending pod with `quarantine: "true"`
+4. Creates a `NetworkPolicy` that denies all ingress and egress for pods with that label
+5. Emits a `QuarantineApplied` CloudWatch metric
+6. Cleans up the kubeconfig from `/tmp` regardless of success or failure
+
+The SNS subscription uses a `FilterPolicy` so only `ERROR` and `CRITICAL` priority alerts invoke the Lambda — `WARNING` alerts (e.g. `shell_in_container`) are logged by Falco but do not trigger automatic isolation.
+
 ## Lambda Deployment (SAM)
 
 The `lambda/` directory is a SAM application. Deploy it after the EKS cluster and SNS topic exist.
