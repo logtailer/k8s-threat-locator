@@ -28,10 +28,12 @@ env/
 .idea/
 .vscode/
 
-# Lambda
+# Lambda / SAM
 lambda/package/
 .aws-sam/
 samconfig.toml
+packaged.yaml
+lambda/.aws-sam/
 
 # Trivy
 *.sarif
