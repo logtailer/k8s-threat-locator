@@ -1,0 +1,19 @@
+# Checkov static analysis config
+# https://www.checkov.io/2.Basics/CLI%20Command%20Reference.html
+
+skip-check:
+  # CKV_K8S_6 — "Do not admit root containers"
+  # The items-api deployment intentionally runs as root so Falco can detect
+  # privileged shell execution inside the container. This is the attack surface
+  # the project exists to demonstrate — suppressing the check here is deliberate.
+  - CKV_K8S_6
+
+  # CKV_K8S_30 — "Do not use the default namespace"
+  # threat-demo namespace is explicitly created; this check fires on
+  # the Falco DaemonSet which uses the falco namespace, not default.
+  - CKV_K8S_30
+
+directory:
+  - k8s
+  - terraform
+  - lambda
