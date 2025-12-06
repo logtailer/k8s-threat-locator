@@ -40,6 +40,9 @@ Resources:
       Description: Quarantines compromised Kubernetes pods on Falco alert
       ReservedConcurrentExecutions: 10
       Role: !GetAtt IncidentResponderRole.Arn
+      Tags:
+        Project: k8s-threat-locator
+        ManagedBy: sam
       Environment:
         Variables:
           KUBECONFIG_BUCKET: !Ref KubeconfigBucket
