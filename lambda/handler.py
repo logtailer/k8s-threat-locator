@@ -61,7 +61,7 @@ def _build_quarantine_policy(pod_name: str, namespace: str) -> client.V1NetworkP
     )
 
 
-def _download_kubeconfig():
+def _download_kubeconfig() -> None:
     s3 = boto3.client("s3", config=BotocoreConfig(connect_timeout=5, read_timeout=10))
     try:
         s3.download_file(KUBECONFIG_BUCKET, KUBECONFIG_KEY, KUBECONFIG_PATH)
