@@ -71,7 +71,7 @@ helm install falco falcosecurity/falco \
 
 | Rule | Trigger | Priority |
 |------|---------|---------|
-| `shell_in_container` | Shell binary spawned in container (e.g. `kubectl exec ... -- sh`) | WARNING |
+| `shell_in_container` | Shell binary spawned in container (e.g. `kubectl exec ... -- sh`) | ERROR |
 | `write_to_etc` | Any file opened for write under `/etc/` inside a container | ERROR |
 | `unexpected_outbound_connection` | Outbound connection from `items-api` on port other than 443/53/5000 | WARNING |
 
@@ -349,14 +349,14 @@ aws cloudwatch get-metric-statistics \
   --statistics Sum
 ```
 
-### 4. Trigger the `shell_in_container` rule (WARNING — logged but does not quarantine)
+### 4. Trigger the `shell_in_container` rule (ERROR — also triggers quarantine)
 
 ```bash
-# WARNING priority is filtered out of the SNS subscription
+# ERROR priority passes through the SNS filter policy and triggers Lambda
 kubectl exec -it -n threat-demo "$POD" -- /bin/sh
 ```
 
-Falco fires the alert, but the SNS filter policy blocks it from reaching Lambda because the priority is `WARNING`, not `ERROR` or `CRITICAL`.
+Falco fires the alert at ERROR priority, Falcosidekick forwards it to SNS, and Lambda quarantines the pod — same as the `write_to_etc` path.
 
 ### Cleanup
 
