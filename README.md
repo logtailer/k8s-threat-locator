@@ -204,31 +204,61 @@ See each component's section in this README for setup instructions.
 ## Architecture Overview
 
 ```
-┌─────────────┐    push     ┌──────────────────────────────────────────┐
-│  Developer  │────────────▶│  GitHub Actions CI                       │
-└─────────────┘             │  1. build  → docker build (no push)      │
-                            │  2. scan   → Trivy CRITICAL gate          │
-                            │  3. push   → ECR (blocked by step 2)     │
-                            └──────────────────────────────────────────┘
-                                              ↓ (if scan passes)
-                             ┌────────────────────────────────────────┐
-                             │  AWS EKS Cluster                       │
-                             │  ┌──────────────┐  ┌───────────────┐  │
-                             │  │  Calico CNI  │  │  Flask app    │  │
-                             │  │  default-deny│  │  (victim pod) │  │
-                             │  └──────────────┘  └───────────────┘  │
-                             │  ┌──────────────────────────────────┐  │
-                             │  │  Falco DaemonSet                 │  │
-                             │  │  detects: shell, /etc writes,    │  │
-                             │  │  unexpected outbound connections  │  │
-                             │  └──────────────────────────────────┘  │
-                             └────────────────────────────────────────┘
-                                              ↓ alert
-                             ┌────────────────────────────────────────┐
-                             │  AWS SNS → Lambda                      │
-                             │  applies quarantine NetworkPolicy       │
-                             │  to isolate the compromised pod        │
-                             └────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  Developer pushes to main                                                    │
+└──────────────────────────────┬───────────────────────────────────────────────┘
+                               │
+                               ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  GitHub Actions CI                                                           │
+│                                                                              │
+│  [build] docker build app/                                                   │
+│       │                                                                      │
+│       ▼                                                                      │
+│  [trivy-scan] scan image for CVEs                                            │
+│       │  ├─ upload SARIF → GitHub Security tab                               │
+│       │  └─ exit 1 if CRITICAL CVEs found  ◄── pipeline stops here          │
+│       │        (Flask==1.0.0 always triggers this)                           │
+│       ▼                                                                      │
+│  [push] push to ECR  (never reached while CVEs remain)                       │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  AWS EKS Cluster  (us-east-1, private endpoint)                              │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │  threat-demo namespace                                               │    │
+│  │                                                                      │    │
+│  │  [Calico default-deny order:1000]  ← blocks all unless allowed      │    │
+│  │  [allow-dns     order:100]         ← UDP/TCP 53 to kube-dns         │    │
+│  │  [allow-ingress order:200]         ← port 5000 from role=frontend   │    │
+│  │  [allow-egress  order:200]         ← HTTPS/443 to AWS (IRSA)        │    │
+│  │                                                                      │    │
+│  │  ┌──────────────────────────────────────────────┐                   │    │
+│  │  │  items-api pod (Flask, runs as root)          │                   │    │
+│  │  │  ServiceAccount: app-sa (IRSA → s3:GetObject) │                   │    │
+│  │  └──────────────────────────────────────────────┘                   │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │  falco namespace                                                     │    │
+│  │  Falco DaemonSet — watches kernel syscalls on every worker node      │    │
+│  │  Rules: shell_in_container · write_to_etc · unexpected_outbound      │    │
+│  │  Falcosidekick → forwards ERROR/CRITICAL alerts to SNS               │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+└──────────────────────────────────────────────────────────────────────────────┘
+                               │ SNS (ERROR/CRITICAL only)
+                               ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  AWS Lambda  (k8s-threat-locator-responder)                                  │
+│                                                                              │
+│  1. Parse Falco JSON → extract pod name + namespace                          │
+│  2. Download kubeconfig from S3 → /tmp/kubeconfig                           │
+│  3. Patch pod: add label  quarantine=true                                    │
+│  4. Create NetworkPolicy: deny all ingress + egress to quarantine=true pods  │
+│  5. Emit CloudWatch metric  QuarantineApplied{Namespace, Pod}                │
+│  6. Delete /tmp/kubeconfig                                                   │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## End-to-End Attack Simulation
