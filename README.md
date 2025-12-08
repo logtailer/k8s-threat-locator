@@ -231,6 +231,65 @@ See each component's section in this README for setup instructions.
                              └────────────────────────────────────────┘
 ```
 
+## End-to-End Attack Simulation
+
+Follow these steps to exercise the full detection-and-response pipeline on a running cluster.
+
+### 1. Trigger the Falco `write_to_etc` rule (ERROR priority → quarantine)
+
+```bash
+# Exec into the running pod
+POD=$(kubectl get pod -n threat-demo -l app=items-api -o jsonpath='{.items[0].metadata.name}')
+
+# Write to /etc/ — triggers write_to_etc rule at ERROR priority
+kubectl exec -n threat-demo "$POD" -- sh -c "echo pwned > /etc/pwned"
+```
+
+Within a few seconds Falco logs the alert, Falcosidekick pushes it to SNS, and Lambda quarantines the pod.
+
+### 2. Verify the quarantine
+
+```bash
+# Pod should now be labelled
+kubectl get pod "$POD" -n threat-demo --show-labels | grep quarantine
+
+# NetworkPolicy should exist
+kubectl get networkpolicy -n threat-demo quarantine-"$POD"
+
+# Pod can no longer reach other pods or external endpoints
+kubectl exec -n threat-demo "$POD" -- curl -m 3 https://example.com  # should timeout
+```
+
+### 3. Verify the CloudWatch metric
+
+```bash
+aws cloudwatch get-metric-statistics \
+  --namespace k8s-threat-locator \
+  --metric-name QuarantineApplied \
+  --dimensions Name=Namespace,Value=threat-demo \
+  --start-time "$(date -u -v-5M +%FT%TZ)" \
+  --end-time "$(date -u +%FT%TZ)" \
+  --period 300 \
+  --statistics Sum
+```
+
+### 4. Trigger the `shell_in_container` rule (WARNING — logged but does not quarantine)
+
+```bash
+# WARNING priority is filtered out of the SNS subscription
+kubectl exec -it -n threat-demo "$POD" -- /bin/sh
+```
+
+Falco fires the alert, but the SNS filter policy blocks it from reaching Lambda because the priority is `WARNING`, not `ERROR` or `CRITICAL`.
+
+### Cleanup
+
+```bash
+# Remove the quarantine label and NetworkPolicy to restore connectivity
+kubectl label pod "$POD" -n threat-demo quarantine-
+kubectl delete networkpolicy "quarantine-$POD" -n threat-demo
+```
+
 ## Intentional Vulnerabilities
 
 The `app/requirements.txt` pins old, CVE-laden versions of Flask and its dependencies. This is deliberate — the project exists to show that Trivy catches these before any image reaches the registry. In a real project you would pin to the latest patched versions. Here, leaving them unfixed keeps the Trivy gate visibly red so the shift-left control is easy to demonstrate.
