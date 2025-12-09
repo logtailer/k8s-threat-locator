@@ -47,9 +47,9 @@ resource "aws_iam_policy" "app_s3" {
         Resource = [var.s3_bucket_arn, "${var.s3_bucket_arn}/*"]
       },
       {
-        Sid       = "DenyAllOtherS3Actions"
-        Effect    = "Deny"
-        Action    = "s3:*"
+        Sid         = "DenyAllOtherS3Actions"
+        Effect      = "Deny"
+        Action      = "s3:*"
         NotResource = [var.s3_bucket_arn, "${var.s3_bucket_arn}/*"]
       }
     ]
@@ -74,9 +74,9 @@ resource "aws_iam_role_policy" "app_s3_explicit_deny" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid        = "ExplicitDenyNonAppBuckets"
-        Effect     = "Deny"
-        Action     = ["s3:*"]
+        Sid         = "ExplicitDenyNonAppBuckets"
+        Effect      = "Deny"
+        Action      = ["s3:*"]
         NotResource = [var.s3_bucket_arn, "${var.s3_bucket_arn}/*"]
       }
     ]
