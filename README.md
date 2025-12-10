@@ -180,6 +180,22 @@ aws s3 cp ~/.kube/config s3://<your-kubeconfig-bucket>/kubeconfig
 
 > **Security note:** The kubeconfig grants cluster access. Restrict the S3 bucket to the Lambda execution role only and enable S3 server-side encryption.
 
+## Component Versions
+
+| Component | Version | Notes |
+|-----------|---------|-------|
+| Python (Lambda) | 3.11 | Lambda runtime |
+| Python (app) | 3.9.18 | Docker base image |
+| Flask | 1.0.0 | Intentionally vulnerable |
+| Werkzeug | 0.14.1 | Intentionally vulnerable |
+| kubernetes (Python client) | 29.0.0 | Lambda Kubernetes SDK |
+| Terraform | >= 1.6.0 | Infrastructure provisioning |
+| AWS provider | ~> 5.0 | Terraform AWS provider |
+| Falco Helm chart | 4.3.0 | Runtime threat detection |
+| Calico | via EKS managed add-on | CNI + NetworkPolicy engine |
+| Trivy action | v0.20.0 | CI vulnerability scanner |
+| ruff | v0.3.0 | Python linter (pre-commit) |
+
 ## Prerequisites
 
 - AWS CLI configured with appropriate permissions
