@@ -198,12 +198,13 @@ aws s3 cp ~/.kube/config s3://<your-kubeconfig-bucket>/kubeconfig
 
 ## Prerequisites
 
-- AWS CLI configured with appropriate permissions
+- AWS CLI configured with appropriate permissions and a profile that can create EKS, VPC, IAM, ECR, SNS, Lambda, CloudWatch, and S3 resources
 - Terraform >= 1.6.0
-- kubectl
+- kubectl (version matching the EKS cluster version)
 - Helm >= 3.x
-- Docker
-- AWS SAM CLI
+- Docker (for local builds)
+- AWS SAM CLI (for Lambda deployment)
+- pre-commit (optional, for local linting: `pip install pre-commit && pre-commit install`)
 
 ## API Endpoints
 
