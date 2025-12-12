@@ -337,6 +337,28 @@ kubectl label pod "$POD" -n threat-demo quarantine-
 kubectl delete networkpolicy "quarantine-$POD" -n threat-demo
 ```
 
+## Troubleshooting
+
+**Falco alerts not reaching Lambda**
+- Confirm `falcosidekick.config.aws.sns.topicArn` is set in `falco/values.yaml`
+- Verify the Falcosidekick pod has IAM permissions to publish to SNS (use IRSA or node IAM role)
+- Check Falcosidekick logs: `kubectl logs -n falco -l app=falco-falcosidekick`
+
+**Lambda not applying quarantine**
+- Check CloudWatch Logs at `/aws/lambda/k8s-threat-locator-responder`
+- Verify the kubeconfig is uploaded to S3 and the Lambda role has `s3:GetObject` on the exact key ARN
+- Ensure the kubeconfig `server:` URL is reachable from the Lambda's VPC (or use EKS private endpoint with VPC peering)
+
+**NetworkPolicy not blocking traffic**
+- Calico must be the CNI. Verify: `kubectl get daemonset -n kube-system -l k8s-app=calico-node`
+- Standard Kubernetes `NetworkPolicy` resources cannot block traffic when Calico is not the CNI; Calico's `crd.projectcalico.org/v1` policies require Calico specifically
+
+**Terraform apply fails on EKS OIDC**
+- The `tls_certificate` data source requires internet access to the OIDC endpoint. Ensure the Terraform runner can reach `oidc.eks.<region>.amazonaws.com`
+
+**pod receives quarantine label but policy selector does not match**
+- The quarantine NetworkPolicy targets pods with `quarantine: "true"` via `matchLabels`. Confirm the pod was labelled: `kubectl get pod <name> -n threat-demo --show-labels`
+
 ## Intentional Vulnerabilities
 
 The `app/requirements.txt` pins old, CVE-laden versions of Flask and its dependencies. This is deliberate — the project exists to show that Trivy catches these before any image reaches the registry. In a real project you would pin to the latest patched versions. Here, leaving them unfixed keeps the Trivy gate visibly red so the shift-left control is easy to demonstrate.
