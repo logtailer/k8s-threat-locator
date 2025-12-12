@@ -4,6 +4,7 @@
     spawned_process
     and container
     and proc.name in (shell_binaries)
+  enabled: true
   output: >
     Shell spawned in container
     (user=%user.name user_uid=%user.uid container_id=%container.id container_name=%container.name
