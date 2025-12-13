@@ -44,3 +44,21 @@ variable "node_instance_type" {
   type        = string
   default     = "t3.medium"
 }
+
+variable "desired_nodes" {
+  description = "Desired number of worker nodes in the managed node group"
+  type        = number
+  default     = 2
+}
+
+variable "min_nodes" {
+  description = "Minimum number of worker nodes for the auto scaling group"
+  type        = number
+  default     = 1
+}
+
+variable "max_nodes" {
+  description = "Maximum number of worker nodes for the auto scaling group"
+  type        = number
+  default     = 4
+}
