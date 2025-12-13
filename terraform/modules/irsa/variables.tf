@@ -1,5 +1,6 @@
 variable "cluster_name" {
-  type = string
+  description = "Name of the EKS cluster — used as a prefix for IAM resource names"
+  type        = string
 }
 
 variable "oidc_provider_arn" {
