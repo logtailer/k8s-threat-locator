@@ -15,6 +15,9 @@ KUBECONFIG_KEY = os.environ.get("KUBECONFIG_KEY", "kubeconfig")
 KUBECONFIG_PATH = "/tmp/kubeconfig"
 AWS_REGION = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
 
+if not KUBECONFIG_BUCKET:
+    logger.warning("KUBECONFIG_BUCKET is not set — S3 download will fail at runtime")
+
 
 def _emit_quarantine_metric(pod_name: str, namespace: str) -> None:
     cw = boto3.client("cloudwatch", region_name=AWS_REGION)
