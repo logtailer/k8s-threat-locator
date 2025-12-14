@@ -21,6 +21,15 @@ spec:
         - name: items-api
           # intentionally runs as root to demonstrate Falco shell-in-container detection
           image: <ECR_REPO_URL>/k8s-threat-locator:<IMAGE_TAG>
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
           ports:
             - containerPort: 5000
           livenessProbe:
