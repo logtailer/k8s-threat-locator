@@ -37,3 +37,13 @@ output "node_group_role_arn" {
   description = "IAM role ARN of the EKS node group"
   value       = module.eks.node_group_role_arn
 }
+
+output "ecr_repository_name" {
+  description = "Name of the ECR repository"
+  value       = module.ecr.repository_name
+}
+
+output "vpc_cidr" {
+  description = "CIDR block of the VPC"
+  value       = module.vpc.vpc_cidr
+}
