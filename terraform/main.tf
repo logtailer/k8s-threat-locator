@@ -27,6 +27,9 @@ module "eks" {
   project             = var.project
   ecr_repository_arn  = module.ecr.repository_arn
   node_instance_type  = var.node_instance_type
+  desired_nodes       = var.desired_nodes
+  min_nodes           = var.min_nodes
+  max_nodes           = var.max_nodes
 }
 
 module "ecr" {
