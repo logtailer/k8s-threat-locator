@@ -83,4 +83,3 @@ resource "aws_iam_role_policy" "app_s3_explicit_deny" {
   })
 }
 
-data "aws_caller_identity" "current" {}
