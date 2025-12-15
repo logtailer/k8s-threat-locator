@@ -99,6 +99,12 @@ kubectl apply -f k8s/network-policies/default-deny.yaml  # apply deny last
 ```
 
 > **Requires Calico** installed as the cluster CNI. The `crd.projectcalico.org/v1` API version is Calico-specific and will not work with the standard `networking.k8s.io/v1` NetworkPolicy.
+>
+> Install Calico before applying these policies:
+> ```bash
+> kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/tigera-operator.yaml
+> kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/custom-resources.yaml
+> ```
 
 ## IRSA (IAM Roles for Service Accounts)
 
