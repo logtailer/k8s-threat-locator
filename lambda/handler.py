@@ -3,6 +3,7 @@ import logging
 import os
 
 import boto3
+from botocore.config import Config as BotocoreConfig
 from kubernetes import client, config
 
 logger = logging.getLogger()
@@ -58,7 +59,7 @@ def _build_quarantine_policy(pod_name: str, namespace: str) -> client.V1NetworkP
 
 
 def _download_kubeconfig():
-    s3 = boto3.client("s3", config=boto3.session.Config(connect_timeout=5, read_timeout=10))
+    s3 = boto3.client("s3", config=BotocoreConfig(connect_timeout=5, read_timeout=10))
     s3.download_file(KUBECONFIG_BUCKET, KUBECONFIG_KEY, KUBECONFIG_PATH)
     logger.info("Downloaded kubeconfig from s3://%s/%s", KUBECONFIG_BUCKET, KUBECONFIG_KEY)
 
