@@ -8,6 +8,20 @@ A security-focused Kubernetes project demonstrating layered cloud-native securit
 - **Runtime threat detection** — Falco DaemonSet watching for malicious activity in containers
 - **Automated incident response** — Lambda function that quarantines compromised pods via Kubernetes NetworkPolicy
 
+## Goals
+
+This project demonstrates how layered security controls complement each other across the software lifecycle:
+
+| Stage | Control | What it prevents |
+|-------|---------|-----------------|
+| Build | Trivy CVE gate | Vulnerable images reaching production |
+| Deploy | Calico default-deny | Lateral movement between pods |
+| Runtime | IRSA | Over-privileged cloud API access |
+| Runtime | Falco | Malicious activity going undetected |
+| Response | Lambda quarantine | Compromised pods spreading further |
+
+No single control is sufficient on its own. The project is structured so each layer has a visible proof: the CI gate is visibly red, the network policies block real traffic, IRSA issues short-lived credentials, Falco fires within seconds of a shell exec, and the quarantine NetworkPolicy is visible in `kubectl get netpol`.
+
 ## Architecture
 
 ```
