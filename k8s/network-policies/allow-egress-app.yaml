@@ -11,6 +11,8 @@ spec:
     - Egress
   egress:
     # Allow HTTPS to AWS STS and S3 endpoints (required for IRSA token exchange)
+    # 0.0.0.0/0 is intentional: AWS regional endpoints have dynamic IPs.
+    # A tighter posture would use a VPC endpoint and restrict to its prefix list.
     - action: Allow
       protocol: TCP
       destination:
