@@ -408,3 +408,9 @@ curl http://localhost:5000/health
 curl http://localhost:5000/items
 curl -X POST http://localhost:5000/items -H "Content-Type: application/json" -d '{"name":"widget"}'
 ```
+
+## Changelog
+
+### v0.1.0 (2025-12-19)
+- Initial release — all six security layers implemented and documented
+- Flask victim app with intentional CVEs, Trivy CI gate, Terraform EKS/VPC/ECR/IRSA, Calico network policies, Falco custom rules, Lambda quarantine responder
