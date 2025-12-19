@@ -39,3 +39,8 @@ lambda/.aws-sam/
 # Trivy
 *.sarif
 trivy-results.sarif
+
+# Local dev scratch files
+scratch/
+notes.md
+*.local
