@@ -38,7 +38,7 @@ def _emit_quarantine_metric(pod_name: str, namespace: str) -> None:
     logger.info("Emitted QuarantineApplied metric for pod %s/%s", namespace, pod_name)
 
 
-def _get_k8s_clients():
+def _get_k8s_clients() -> tuple:
     config.load_kube_config(config_file=KUBECONFIG_PATH)
     k8s_client = client.ApiClient()
     return client.CoreV1Api(k8s_client), client.NetworkingV1Api(k8s_client)
