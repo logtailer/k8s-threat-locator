@@ -13,6 +13,11 @@ skip-check:
   # the Falco DaemonSet which uses the falco namespace, not default.
   - CKV_K8S_30
 
+  # CKV_K8S_8 — "Liveness probe should be configured"
+  # Liveness probe is configured on items-api. This fires on Falco DaemonSet pods
+  # which are vendor-managed via Helm and not in scope for this repo's checks.
+  - CKV_K8S_8
+
 directory:
   - k8s
   - terraform
