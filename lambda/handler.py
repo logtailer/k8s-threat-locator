@@ -19,7 +19,7 @@ if not KUBECONFIG_BUCKET:
     logger.warning("KUBECONFIG_BUCKET is not set — S3 download will fail at runtime")
 
 
-def _emit_quarantine_metric(pod_name: str, namespace: str) -> None:
+def _emit_quarantine_metric(pod_name: str, namespace: str, rule: str = "") -> None:
     cw = boto3.client("cloudwatch", region_name=AWS_REGION)
     cw.put_metric_data(
         Namespace="k8s-threat-locator",
@@ -29,13 +29,14 @@ def _emit_quarantine_metric(pod_name: str, namespace: str) -> None:
                 "Dimensions": [
                     {"Name": "Namespace", "Value": namespace},
                     {"Name": "Pod", "Value": pod_name},
+                    {"Name": "Rule", "Value": rule or "unknown"},
                 ],
                 "Value": 1,
                 "Unit": "Count",
             }
         ],
     )
-    logger.info("Emitted QuarantineApplied metric for pod %s/%s", namespace, pod_name)
+    logger.info("Emitted QuarantineApplied metric for pod %s/%s rule=%s", namespace, pod_name, rule)
 
 
 def _get_k8s_clients() -> tuple:
@@ -118,7 +119,7 @@ def handler(event, context):
                     body=policy,
                 )
                 logger.info("Quarantine NetworkPolicy applied for pod %s/%s", namespace, pod_name)
-                _emit_quarantine_metric(pod_name, namespace)
+                _emit_quarantine_metric(pod_name, namespace, rule=alert.get("rule", ""))
             except client.ApiException as exc:
                 if exc.status == 409:
                     logger.info("Quarantine policy already exists for pod %s/%s — pod is already isolated", namespace, pod_name)
