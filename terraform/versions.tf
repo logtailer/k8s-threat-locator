@@ -19,4 +19,11 @@ terraform {
 
 provider "aws" {
   region = var.aws_region
+
+  default_tags {
+    tags = {
+      Project   = "k8s-threat-locator"
+      ManagedBy = "terraform"
+    }
+  }
 }
