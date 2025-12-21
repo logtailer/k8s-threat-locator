@@ -342,7 +342,7 @@ kubectl exec -n threat-demo "$POD" -- curl -m 3 https://example.com  # should ti
 aws cloudwatch get-metric-statistics \
   --namespace k8s-threat-locator \
   --metric-name QuarantineApplied \
-  --dimensions Name=Namespace,Value=threat-demo \
+  --dimensions Name=Namespace,Value=threat-demo Name=Rule,Value=write_to_etc \
   --start-time "$(date -u -v-5M +%FT%TZ)" \
   --end-time "$(date -u +%FT%TZ)" \
   --period 300 \
