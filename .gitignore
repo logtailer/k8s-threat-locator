@@ -55,3 +55,6 @@ lambda/*.pyc
 # Python type checking
 .pytype/
 .pyre/
+
+# pre-commit cache
+.pre-commit-cache/
