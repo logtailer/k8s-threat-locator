@@ -4,6 +4,7 @@ import os
 
 import boto3
 from botocore.config import Config as BotocoreConfig
+from botocore.exceptions import ClientError
 from kubernetes import client, config
 
 logger = logging.getLogger()
@@ -60,7 +61,12 @@ def _build_quarantine_policy(pod_name: str, namespace: str) -> client.V1NetworkP
 
 def _download_kubeconfig():
     s3 = boto3.client("s3", config=BotocoreConfig(connect_timeout=5, read_timeout=10))
-    s3.download_file(KUBECONFIG_BUCKET, KUBECONFIG_KEY, KUBECONFIG_PATH)
+    try:
+        s3.download_file(KUBECONFIG_BUCKET, KUBECONFIG_KEY, KUBECONFIG_PATH)
+    except ClientError as exc:
+        code = exc.response["Error"]["Code"]
+        logger.error("S3 download failed (bucket=%s key=%s): %s", KUBECONFIG_BUCKET, KUBECONFIG_KEY, code)
+        raise
     logger.info("Downloaded kubeconfig from s3://%s/%s", KUBECONFIG_BUCKET, KUBECONFIG_KEY)
 
 
