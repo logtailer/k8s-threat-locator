@@ -236,7 +236,14 @@ aws s3 cp ~/.kube/config s3://<your-kubeconfig-bucket>/kubeconfig
 
 ## Getting Started
 
-See each component's section in this README for setup instructions.
+Quickstart order:
+
+1. [Terraform](#terraform) — provision EKS, VPC, ECR, IRSA
+2. [Network Security](#network-security-calico) — install Calico, apply network policies
+3. [IRSA](#irsa-iam-roles-for-service-accounts) — annotate the ServiceAccount with the IAM role ARN
+4. [Runtime Threat Detection](#runtime-threat-detection-falco) — deploy Falco via Helm
+5. [Lambda Deployment](#lambda-deployment-sam) — deploy the quarantine responder
+6. [End-to-End Attack Simulation](#end-to-end-attack-simulation) — verify the full pipeline
 
 ## Architecture Overview
 
