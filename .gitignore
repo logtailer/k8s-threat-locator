@@ -44,3 +44,6 @@ trivy-results.sarif
 scratch/
 notes.md
 *.local
+
+# AWS SAM build output (may appear in project root or lambda/)
+*/.aws-sam/
