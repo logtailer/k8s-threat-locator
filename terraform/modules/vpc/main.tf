@@ -128,4 +128,16 @@ resource "aws_vpc_endpoint" "s3" {
   })
 }
 
+resource "aws_vpc_endpoint" "sts" {
+  vpc_id              = aws_vpc.this.id
+  service_name        = "com.amazonaws.${data.aws_region.current.name}.sts"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  private_dns_enabled = true
+
+  tags = merge(local.tags, {
+    Name = "${var.project}-sts-endpoint"
+  })
+}
+
 data "aws_region" "current" {}
