@@ -20,4 +20,10 @@ spec:
           - "0.0.0.0/0"
         ports:
           - 443
+    # Allow outbound on port 5000 for health checks from within the cluster
+    - action: Allow
+      protocol: TCP
+      destination:
+        ports:
+          - 5000
     # Deny all other egress — falls through to default-deny at order 1000
