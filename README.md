@@ -422,6 +422,9 @@ curl -X POST http://localhost:5000/items -H "Content-Type: application/json" -d 
 
 ## Changelog
 
-### v0.1.0 (2025-12-19)
+### v0.1.0 (2025-12-28)
 - Initial release — all six security layers implemented and documented
 - Flask victim app with intentional CVEs, Trivy CI gate, Terraform EKS/VPC/ECR/IRSA, Calico network policies, Falco custom rules, Lambda quarantine responder
+- VPC endpoints for S3 and STS to keep IRSA traffic off the public internet
+- Downward API env vars (POD_NAME, POD_NAMESPACE) injected into the app container
+- Rule name added as a CloudWatch dimension to the QuarantineApplied metric
