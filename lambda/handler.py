@@ -130,6 +130,6 @@ def handler(event, context):
         finally:
             if os.path.exists(KUBECONFIG_PATH):
                 os.remove(KUBECONFIG_PATH)
-                logger.debug("Cleaned up kubeconfig from %s", KUBECONFIG_PATH)
+                logger.info("Cleaned up kubeconfig from %s", KUBECONFIG_PATH)
 
     return {"statusCode": 200, "body": "ok"}
