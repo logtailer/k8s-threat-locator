@@ -22,3 +22,13 @@ output "vpc_cidr" {
   description = "CIDR block of the VPC"
   value       = aws_vpc.this.cidr_block
 }
+
+output "s3_endpoint_id" {
+  description = "ID of the S3 Gateway VPC endpoint"
+  value       = aws_vpc_endpoint.s3.id
+}
+
+output "sts_endpoint_id" {
+  description = "ID of the STS Interface VPC endpoint"
+  value       = aws_vpc_endpoint.sts.id
+}
