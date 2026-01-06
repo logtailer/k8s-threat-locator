@@ -45,12 +45,17 @@ def _get_k8s_clients() -> tuple:
     return client.CoreV1Api(k8s_client), client.NetworkingV1Api(k8s_client)
 
 
+def _policy_name(pod_name: str) -> str:
+    name = f"quarantine-{pod_name}"
+    return name[:63].rstrip("-")
+
+
 def _build_quarantine_policy(pod_name: str, namespace: str) -> client.V1NetworkPolicy:
     return client.V1NetworkPolicy(
         api_version="networking.k8s.io/v1",
         kind="NetworkPolicy",
         metadata=client.V1ObjectMeta(
-            name=f"quarantine-{pod_name}",
+            name=_policy_name(pod_name),
             namespace=namespace,
             labels={"quarantine": "true", "managed-by": "k8s-threat-locator"},
         ),
