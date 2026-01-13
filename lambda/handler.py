@@ -93,7 +93,12 @@ def handler(event, context):
     logger.info("Received event with %d records", len(event.get("Records", [])))
 
     for record in event.get("Records", []):
-        sns_message = record.get("Sns", {}).get("Message", "{}")
+        sns_payload = record.get("Sns", {})
+        if sns_payload.get("Type") == "SubscriptionConfirmation":
+            logger.info("Ignoring SNS subscription confirmation message")
+            continue
+
+        sns_message = sns_payload.get("Message", "{}")
         try:
             alert = json.loads(sns_message)
         except json.JSONDecodeError:
