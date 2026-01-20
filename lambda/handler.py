@@ -110,14 +110,15 @@ def handler(event, context):
         output_fields = alert.get("output_fields", {})
         pod_name = output_fields.get("k8s.pod.name")
         namespace = output_fields.get("k8s.ns.name")
+        rule = alert.get("rule", "unknown")
+        priority = alert.get("priority", "unknown")
 
         if not pod_name or not namespace:
-            logger.warning("Alert missing pod/namespace fields — skipping. fields=%s", output_fields)
+            logger.warning("Alert missing pod/namespace fields — skipping. rule=%s fields=%s", rule, output_fields)
             continue
 
         logger.info("Falco alert: rule=%s priority=%s pod=%s ns=%s time=%s",
-                    alert.get("rule"), alert.get("priority"), pod_name, namespace,
-                    alert.get("time"))
+                    rule, priority, pod_name, namespace, alert.get("time"))
 
         try:
             _download_kubeconfig()
