@@ -142,7 +142,7 @@ def handler(event, context):
                 _emit_quarantine_metric(pod_name, namespace, rule=alert.get("rule", ""))
             except client.ApiException as exc:
                 if exc.status == 409:
-                    logger.info("Quarantine policy already exists for pod %s/%s — pod is already isolated", namespace, pod_name)
+                    logger.info("Quarantine policy already exists for pod %s/%s rule=%s — skipping", namespace, pod_name, rule)
                 else:
                     raise
         except Exception:
