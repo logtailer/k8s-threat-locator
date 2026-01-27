@@ -404,6 +404,7 @@ kubectl delete networkpolicy "quarantine-$POD" -n threat-demo
 - Check CloudWatch Logs at `/aws/lambda/k8s-threat-locator-responder`
 - Verify the kubeconfig is uploaded to S3 and the Lambda role has `s3:GetObject` on the exact key ARN
 - Ensure the kubeconfig `server:` URL is reachable from the Lambda's VPC (or use EKS private endpoint with VPC peering)
+- Enable EKS API server access logging: `aws eks update-cluster-config --name <cluster> --logging '{"clusterLogging":[{"types":["api","audit"],"enabled":true}]}'` — lets you trace which identity the Lambda kubeconfig uses
 
 **NetworkPolicy not blocking traffic**
 - Calico must be the CNI. Verify: `kubectl get daemonset -n kube-system -l k8s-app=calico-node`
