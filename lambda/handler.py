@@ -123,6 +123,7 @@ def handler(event, context):
         try:
             _download_kubeconfig()
             core_v1, networking_v1 = _get_k8s_clients()
+            logger.info("Kubernetes clients initialised for pod %s/%s", namespace, pod_name)
 
             # Label the pod so the quarantine NetworkPolicy selector can target it
             core_v1.patch_namespaced_pod(
