@@ -91,20 +91,24 @@ def _download_kubeconfig() -> None:
     logger.info("Downloaded kubeconfig from s3://%s/%s", KUBECONFIG_BUCKET, KUBECONFIG_KEY)
 
 
+def _parse_alert(record: dict) -> dict | None:
+    sns_payload = record.get("Sns", {})
+    if sns_payload.get("Type") == "SubscriptionConfirmation":
+        logger.info("Ignoring SNS subscription confirmation message")
+        return None
+    try:
+        return json.loads(sns_payload.get("Message", "{}"))
+    except json.JSONDecodeError:
+        logger.warning("Could not parse SNS message as JSON: %s", sns_payload.get("Message"))
+        return None
+
+
 def handler(event, context):
     logger.info("Received event with %d records", len(event.get("Records", [])))
 
     for record in event.get("Records", []):
-        sns_payload = record.get("Sns", {})
-        if sns_payload.get("Type") == "SubscriptionConfirmation":
-            logger.info("Ignoring SNS subscription confirmation message")
-            continue
-
-        sns_message = sns_payload.get("Message", "{}")
-        try:
-            alert = json.loads(sns_message)
-        except json.JSONDecodeError:
-            logger.warning("Could not parse SNS message as JSON: %s", sns_message)
+        alert = _parse_alert(record)
+        if alert is None:
             continue
 
         output_fields = alert.get("output_fields", {})
