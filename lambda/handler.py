@@ -91,6 +91,32 @@ def _download_kubeconfig() -> None:
     logger.info("Downloaded kubeconfig from s3://%s/%s", KUBECONFIG_BUCKET, KUBECONFIG_KEY)
 
 
+def _quarantine_pod(
+    core_v1: client.CoreV1Api,
+    networking_v1: client.NetworkingV1Api,
+    pod_name: str,
+    namespace: str,
+    rule: str,
+) -> None:
+    core_v1.patch_namespaced_pod(
+        name=pod_name,
+        namespace=namespace,
+        body={"metadata": {"labels": {"quarantine": "true"}}},
+    )
+    logger.info("Labelled pod %s/%s with quarantine=true", namespace, pod_name)
+
+    policy = _build_quarantine_policy(pod_name, namespace)
+    try:
+        networking_v1.create_namespaced_network_policy(namespace=namespace, body=policy)
+        logger.info("Quarantine NetworkPolicy applied for pod %s/%s", namespace, pod_name)
+        _emit_quarantine_metric(pod_name, namespace, rule=rule)
+    except client.ApiException as exc:
+        if exc.status == 409:
+            logger.info("Quarantine policy already exists for pod %s/%s rule=%s — skipping", namespace, pod_name, rule)
+        else:
+            raise
+
+
 def _parse_alert(record: dict) -> dict | None:
     sns_payload = record.get("Sns", {})
     if sns_payload.get("Type") == "SubscriptionConfirmation":
@@ -129,27 +155,7 @@ def handler(event, context):
             core_v1, networking_v1 = _get_k8s_clients()
             logger.info("Kubernetes clients initialised for pod %s/%s", namespace, pod_name)
 
-            # Label the pod so the quarantine NetworkPolicy selector can target it
-            core_v1.patch_namespaced_pod(
-                name=pod_name,
-                namespace=namespace,
-                body={"metadata": {"labels": {"quarantine": "true"}}},
-            )
-            logger.info("Labelled pod %s/%s with quarantine=true", namespace, pod_name)
-
-            policy = _build_quarantine_policy(pod_name, namespace)
-            try:
-                networking_v1.create_namespaced_network_policy(
-                    namespace=namespace,
-                    body=policy,
-                )
-                logger.info("Quarantine NetworkPolicy applied for pod %s/%s", namespace, pod_name)
-                _emit_quarantine_metric(pod_name, namespace, rule=alert.get("rule", ""))
-            except client.ApiException as exc:
-                if exc.status == 409:
-                    logger.info("Quarantine policy already exists for pod %s/%s rule=%s — skipping", namespace, pod_name, rule)
-                else:
-                    raise
+            _quarantine_pod(core_v1, networking_v1, pod_name, namespace, rule)
         except Exception:
             logger.exception("Unhandled error while processing alert for pod %s/%s", namespace, pod_name)
             raise
