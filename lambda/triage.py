@@ -64,6 +64,7 @@ def enrich(
 ) -> PodContext:
     ctx = PodContext(pod_name=pod_name, namespace=namespace)
     ctx.is_system_namespace = namespace in _SYSTEM_NAMESPACES
+    logger.info("Enriching pod context: pod=%s/%s", namespace, pod_name)
 
     try:
         pod = core_v1.read_namespaced_pod(name=pod_name, namespace=namespace)
