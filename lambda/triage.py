@@ -73,7 +73,7 @@ def enrich(
         _enrich_rbac(ctx, rbac_v1, namespace)
         _enrich_namespace(ctx, core_v1, namespace)
     except client.ApiException as exc:
-        logger.warning("Could not fully enrich pod context: %s — using partial context", exc.status)
+        logger.warning("Could not fully enrich pod context for %s/%s: status=%s — using partial context", namespace, pod_name, exc.status)
 
     return ctx
 
