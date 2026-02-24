@@ -87,7 +87,7 @@ def _enrich_pod_spec(ctx: PodContext, pod: client.V1Pod) -> None:
     if pod_sc.run_as_user == 0 or pod_sc.run_as_non_root is False:
         ctx.runs_as_root = True
 
-    for container in (spec.containers or []):
+    for container in (spec.containers or []) + (spec.init_containers or []):
         sc = container.security_context or client.V1SecurityContext()
         if sc.privileged:
             ctx.has_privileged_container = True
