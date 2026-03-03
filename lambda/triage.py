@@ -162,3 +162,59 @@ def _enrich_namespace(
         ctx.namespace_env = labels.get("environment", labels.get("env", ""))
     except client.ApiException:
         pass
+
+
+def score(ctx: PodContext) -> TriageResult:
+    points = 0
+    reasons = []
+
+    if ctx.has_privileged_container:
+        points += 40
+        reasons.append("privileged container")
+    if ctx.has_cluster_admin:
+        points += 35
+        reasons.append("cluster-admin service account")
+    if ctx.service_type == "LoadBalancer":
+        points += 25
+        reasons.append("LoadBalancer service (internet-exposed)")
+    elif ctx.service_type == "NodePort":
+        points += 15
+        reasons.append("NodePort service")
+    if ctx.has_host_network:
+        points += 20
+        reasons.append("hostNetwork=true")
+    if ctx.has_host_pid:
+        points += 20
+        reasons.append("hostPID=true")
+    if ctx.has_dangerous_caps:
+        points += 15
+        reasons.append("dangerous Linux capabilities")
+    if ctx.runs_as_root:
+        points += 10
+        reasons.append("runs as root")
+    if ctx.is_system_namespace:
+        points += 20
+        reasons.append("system namespace")
+    if ctx.namespace_env in ("prod", "production"):
+        points += 10
+        reasons.append("production namespace")
+    elif ctx.namespace_env in ("dev", "development", "staging", "demo"):
+        points -= 10
+
+    points = max(0, min(100, points))
+
+    if points >= 70:
+        severity, action = "critical", Action.QUARANTINE
+    elif points >= 40:
+        severity, action = "high", Action.QUARANTINE
+    elif points >= 20:
+        severity, action = "medium", Action.ANNOTATE
+    else:
+        severity, action = "low", Action.ALERT_ONLY
+
+    reason = ", ".join(reasons) if reasons else "no elevated risk factors"
+    logger.info(
+        "Triage: pod=%s/%s score=%d severity=%s action=%s reason=[%s]",
+        ctx.namespace, ctx.pod_name, points, severity, action.value, reason,
+    )
+    return TriageResult(score=points, severity=severity, action=action, reason=reason, context=ctx)
