@@ -199,8 +199,11 @@ def score(ctx: PodContext, alert_rule: str = "") -> TriageResult:
     if ctx.namespace_env in ("prod", "production"):
         points += 10
         reasons.append("production namespace")
-    elif ctx.namespace_env in ("dev", "development", "staging", "demo"):
+    elif ctx.namespace_env in ("dev", "development", "demo"):
         points -= 10
+    elif ctx.namespace_env == "staging":
+        points += 5
+        reasons.append("staging namespace")
 
     points = max(0, min(100, points))
 
