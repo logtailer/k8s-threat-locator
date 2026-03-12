@@ -7,6 +7,8 @@ from botocore.config import Config as BotocoreConfig
 from botocore.exceptions import ClientError
 from kubernetes import client, config
 
+from triage import Action, enrich, score
+
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -17,6 +19,23 @@ AWS_REGION = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
 
 if not KUBECONFIG_BUCKET:
     logger.warning("KUBECONFIG_BUCKET is not set — S3 download will fail at runtime")
+
+
+def _emit_triage_metric(pod_name: str, namespace: str, severity: str) -> None:
+    cw = boto3.client("cloudwatch", region_name=AWS_REGION)
+    cw.put_metric_data(
+        Namespace="k8s-threat-locator",
+        MetricData=[{
+            "MetricName": "TriageScore",
+            "Dimensions": [
+                {"Name": "Namespace", "Value": namespace},
+                {"Name": "Pod", "Value": pod_name},
+                {"Name": "Severity", "Value": severity},
+            ],
+            "Value": 1,
+            "Unit": "Count",
+        }],
+    )
 
 
 def _emit_quarantine_metric(pod_name: str, namespace: str, rule: str = "") -> None:
@@ -44,7 +63,11 @@ def _get_k8s_clients() -> tuple:
     k8s_client = client.ApiClient(
         configuration=client.Configuration(connection_pool_maxsize=4)
     )
-    return client.CoreV1Api(k8s_client), client.NetworkingV1Api(k8s_client)
+    return (
+        client.CoreV1Api(k8s_client),
+        client.NetworkingV1Api(k8s_client),
+        client.RbacAuthorizationV1Api(k8s_client),
+    )
 
 
 def _policy_name(pod_name: str) -> str:
@@ -152,10 +175,24 @@ def handler(event, context):
 
         try:
             _download_kubeconfig()
-            core_v1, networking_v1 = _get_k8s_clients()
+            core_v1, networking_v1, rbac_v1 = _get_k8s_clients()
             logger.info("Kubernetes clients initialised for pod %s/%s", namespace, pod_name)
 
-            _quarantine_pod(core_v1, networking_v1, pod_name, namespace, rule)
+            ctx = enrich(core_v1, rbac_v1, pod_name, namespace)
+            result = score(ctx)
+            _emit_triage_metric(pod_name, namespace, result.severity)
+
+            if result.action == Action.QUARANTINE:
+                _quarantine_pod(core_v1, networking_v1, pod_name, namespace, rule)
+            elif result.action == Action.ANNOTATE:
+                core_v1.patch_namespaced_pod(
+                    name=pod_name,
+                    namespace=namespace,
+                    body={"metadata": {"annotations": {"triage-severity": result.severity, "triage-reason": result.reason}}},
+                )
+                logger.info("Annotated pod %s/%s severity=%s reason=%s", namespace, pod_name, result.severity, result.reason)
+            else:
+                logger.info("Alert-only for pod %s/%s score=%d reason=%s", namespace, pod_name, result.score, result.reason)
         except Exception:
             logger.exception("Unhandled error while processing alert for pod %s/%s", namespace, pod_name)
             raise
