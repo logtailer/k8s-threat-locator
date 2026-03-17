@@ -80,6 +80,15 @@ class TestScore:
         prod = score(_ctx(runs_as_root=True, namespace_env="prod"))
         assert prod.score > base.score
 
+    def test_staging_raises_score_more_than_dev(self):
+        dev = score(_ctx(runs_as_root=True, namespace_env="dev"))
+        staging = score(_ctx(runs_as_root=True, namespace_env="staging"))
+        assert staging.score > dev.score
+
+    def test_dangerous_caps_detected(self):
+        result = score(_ctx(has_dangerous_caps=True))
+        assert result.score >= 15
+
 
 # ---------------------------------------------------------------------------
 # enrich() — integration-style tests with mocked k8s clients
