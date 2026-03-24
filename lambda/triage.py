@@ -175,6 +175,9 @@ def score(ctx: PodContext, alert_rule: str = "") -> TriageResult:
     if ctx.has_cluster_admin:
         points += 35
         reasons.append("cluster-admin service account")
+    elif ctx.cluster_role_names:
+        points += 5
+        reasons.append(f"non-default role bindings: {', '.join(ctx.cluster_role_names[:3])}")
     if ctx.service_type == "LoadBalancer":
         points += 25
         reasons.append("LoadBalancer service (internet-exposed)")
