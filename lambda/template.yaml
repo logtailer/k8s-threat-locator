@@ -31,6 +31,12 @@ Parameters:
     Description: Comma-separated Falco priority levels that trigger quarantine
 
 Resources:
+  QuarantineDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: k8s-threat-locator-dlq
+      MessageRetentionPeriod: 1209600  # 14 days
+
   IncidentResponderFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -40,6 +46,9 @@ Resources:
       Description: Quarantines compromised Kubernetes pods on Falco alert
       ReservedConcurrentExecutions: 10
       Role: !GetAtt IncidentResponderRole.Arn
+      DeadLetterQueue:
+        Type: SQS
+        TargetArn: !GetAtt QuarantineDLQ.Arn
       Tags:
         Project: k8s-threat-locator
         ManagedBy: sam
