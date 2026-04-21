@@ -106,6 +106,20 @@ Resources:
                 # PutMetricData does not support resource-level permissions
                 Resource: "*"
 
+  QuarantineAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: k8s-threat-locator-quarantine-rate
+      AlarmDescription: Fires when more than 5 pods are quarantined in 5 minutes — possible attack wave or runaway rule
+      Namespace: k8s-threat-locator
+      MetricName: QuarantineApplied
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
 Outputs:
   FunctionArn:
     Description: ARN of the incident responder Lambda function
