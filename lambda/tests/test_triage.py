@@ -168,6 +168,24 @@ class TestEnrich:
         assert ctx.pod_name == "missing-pod"
         assert ctx.has_privileged_container is False
 
+    def test_init_container_privileged_detected(self):
+        core_v1 = MagicMock()
+        rbac_v1 = MagicMock()
+        pod = self._make_pod()
+        init_container = MagicMock()
+        init_container.security_context.privileged = True
+        init_container.security_context.run_as_user = 1000
+        init_container.security_context.capabilities.add = []
+        pod.spec.init_containers = [init_container]
+        core_v1.read_namespaced_pod.return_value = pod
+        core_v1.list_namespaced_service.return_value.items = []
+        rbac_v1.list_namespaced_role_binding.return_value.items = []
+        rbac_v1.list_cluster_role_binding.return_value.items = []
+        core_v1.read_namespace.return_value.metadata.labels = {}
+
+        ctx = enrich(core_v1, rbac_v1, "test-pod", "threat-demo")
+        assert ctx.has_privileged_container is True
+
     def test_rbac_permission_denied_does_not_raise(self):
         from kubernetes import client as k8s_client
         core_v1 = MagicMock()
