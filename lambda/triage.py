@@ -99,6 +99,8 @@ def _enrich_pod_spec(ctx: PodContext, pod: client.V1Pod) -> None:
                 ctx.has_dangerous_caps = True
 
     ctx.service_account = spec.service_account_name or "default"
+    logger.debug("Pod spec enriched: privileged=%s host_network=%s root=%s sa=%s",
+                 ctx.has_privileged_container, ctx.has_host_network, ctx.runs_as_root, ctx.service_account)
 
 
 def _enrich_service_exposure(
