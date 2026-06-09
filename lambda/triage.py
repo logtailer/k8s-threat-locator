@@ -52,7 +52,7 @@ class TriageResult:
     context: PodContext
 
 
-_DANGEROUS_CAPS = {"CAP_SYS_ADMIN", "CAP_NET_ADMIN", "CAP_SYS_PTRACE", "CAP_SYS_MODULE"}
+_DANGEROUS_CAPS = frozenset({"CAP_SYS_ADMIN", "CAP_NET_ADMIN", "CAP_SYS_PTRACE", "CAP_SYS_MODULE"})
 _SYSTEM_NAMESPACES = {"kube-system", "kube-public", "falco", "calico-system"}
 
 
