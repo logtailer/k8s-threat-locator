@@ -32,6 +32,9 @@ while [[ ${ELAPSED} -lt ${TIMEOUT} ]]; do
     echo "==> Verifying pod is labelled..."
     kubectl get pod "${POD}" -n "${NAMESPACE}" --show-labels | grep quarantine || true
     echo ""
+    echo "==> Triage annotations (if annotate action was taken):"
+    kubectl get pod "${POD}" -n "${NAMESPACE}" -o jsonpath='{.metadata.annotations}' 2>/dev/null | python3 -m json.tool 2>/dev/null || true
+    echo ""
     echo "==> Cleanup: remove quarantine label and NetworkPolicy"
     echo "    kubectl label pod ${POD} -n ${NAMESPACE} quarantine-"
     echo "    kubectl delete networkpolicy ${POLICY_NAME} -n ${NAMESPACE}"
