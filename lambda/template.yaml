@@ -25,11 +25,6 @@ Parameters:
     Default: kubeconfig
     Description: S3 object key for the kubeconfig file
 
-  AlertPriorityFilter:
-    Type: String
-    Default: "ERROR,CRITICAL"
-    Description: Comma-separated Falco priority levels that trigger quarantine
-
 Resources:
   QuarantineDLQ:
     Type: AWS::SQS::Queue
