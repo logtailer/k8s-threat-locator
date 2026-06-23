@@ -164,7 +164,7 @@ def _enrich_namespace(
         pass
 
 
-def score(ctx: PodContext) -> TriageResult:
+def score(ctx: PodContext, alert_rule: str = "") -> TriageResult:
     points = 0
     reasons = []
 
@@ -214,7 +214,7 @@ def score(ctx: PodContext) -> TriageResult:
 
     reason = ", ".join(reasons) if reasons else "no elevated risk factors"
     logger.info(
-        "Triage: pod=%s/%s score=%d severity=%s action=%s reason=[%s]",
-        ctx.namespace, ctx.pod_name, points, severity, action.value, reason,
+        "Triage: pod=%s/%s rule=%s score=%d severity=%s action=%s reason=[%s]",
+        ctx.namespace, ctx.pod_name, alert_rule, points, severity, action.value, reason,
     )
     return TriageResult(score=points, severity=severity, action=action, reason=reason, context=ctx)

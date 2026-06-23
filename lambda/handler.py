@@ -179,7 +179,7 @@ def handler(event, context):
             logger.info("Kubernetes clients initialised for pod %s/%s", namespace, pod_name)
 
             ctx = enrich(core_v1, rbac_v1, pod_name, namespace)
-            result = score(ctx)
+            result = score(ctx, alert_rule=rule)
             _emit_triage_metric(pod_name, namespace, result.severity)
 
             if result.action == Action.QUARANTINE:
