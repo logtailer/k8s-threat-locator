@@ -1,154 +1,170 @@
 # k8s-threat-locator
 
-A security-focused Kubernetes project demonstrating layered cloud-native security controls:
+[![CI](https://github.com/anandsumit2000/k8s-threat-locator/actions/workflows/ci.yml/badge.svg)](https://github.com/anandsumit2000/k8s-threat-locator/actions/workflows/ci.yml)
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
+[![Terraform](https://img.shields.io/badge/terraform-%3E%3D1.6-623CE4.svg)](https://www.terraform.io/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-- **Shift-left security** — CI pipeline with Trivy image scanning that fails on critical CVEs
-- **Network segmentation** — Calico default-deny network policies with explicit allow rules
-- **Pod identity** — AWS IRSA for least-privilege IAM access from Kubernetes pods
-- **Runtime threat detection** — Falco DaemonSet watching for malicious activity in containers
-- **Automated incident response** — Lambda function that quarantines compromised pods via Kubernetes NetworkPolicy
+Most security tools tell you something happened. This project builds the layer that decides what to do about it.
 
-## Goals
+`k8s-threat-locator` is a runtime security system for Kubernetes that:
 
-This project demonstrates how layered security controls complement each other across the software lifecycle:
+1. **Detects** threats at the kernel level using Falco custom rules
+2. **Enriches** each alert with live cluster context — pod spec, service exposure, RBAC bindings
+3. **Scores** the finding (0–100) based on actual blast radius, not just the syscall pattern
+4. **Acts** proportionally — quarantine critical pods, annotate medium ones, log low-risk events
 
-| Stage | Control | What it prevents |
-|-------|---------|-----------------|
-| Build | Trivy CVE gate | Vulnerable images reaching production |
-| Deploy | Calico default-deny | Lateral movement between pods |
-| Runtime | IRSA | Over-privileged cloud API access |
-| Runtime | Falco | Malicious activity going undetected |
-| Response | Lambda quarantine | Compromised pods spreading further |
+The result: automated incident response that doesn't blindly quarantine every `kubectl exec` from a dev debugging a staging pod.
 
-No single control is sufficient on its own. The project is structured so each layer has a visible proof: the CI gate is visibly red, the network policies block real traffic, IRSA issues short-lived credentials, Falco fires within seconds of a shell exec, and the quarantine NetworkPolicy is visible in `kubectl get netpol`.
+---
 
-## Architecture
+## The Problem With Detect-and-Respond
+
+A shell exec inside a container is suspicious. But how suspicious depends on context:
+
+| Scenario | Risk |
+|----------|------|
+| `kubectl exec` into a `debug` pod in `namespace=dev` | Low |
+| Shell in a pod with a `ClusterIP` service, non-root, no special RBAC | Medium |
+| Shell in a pod with a `LoadBalancer` service and `cluster-admin` binding | Critical |
+
+Without context, you quarantine all three the same way. With context, you quarantine only the third — and annotate the second for review.
+
+---
+
+## How the Pipeline Works
 
 ```
-Developer → GitHub → CI (Trivy scans image → fails on critical CVEs)
-                              ↓ (if CVEs fixed, would push to)
-                             ECR → EKS Cluster
-                                    ├── Calico (default-deny network policies)
-                                    ├── Flask app (victim/test app, runs as root)
-                                    └── Falco (threat detection DaemonSet)
-                                           ↓ (alert on shell exec into pod)
-                                          SNS → Lambda
-                                                   ↓
-                                        Quarantine NetworkPolicy applied to pod
+Developer → GitHub Actions → Trivy CVE gate → ECR → EKS
+                                                       │
+                                              ┌────────┴────────┐
+                                              │   threat-demo   │
+                                              │   namespace     │
+                                              │                 │
+                                              │  Calico         │
+                                              │  default-deny   │
+                                              │       +         │
+                                              │  items-api pod  │
+                                              │  (runs as root) │
+                                              └────────┬────────┘
+                                                       │ syscall event
+                                                       ▼
+                                              Falco DaemonSet
+                                              (kernel-level)
+                                                       │ ERROR alert
+                                                       ▼
+                                              Falcosidekick → SNS
+                                                       │
+                                                       ▼
+                                              Lambda: _parse_alert()
+                                                       │
+                                                       ▼
+                                              triage.enrich()
+                                              ┌─────────────────────┐
+                                              │ • pod spec flags     │
+                                              │ • service type       │
+                                              │ • RBAC bindings      │
+                                              │ • namespace env      │
+                                              └─────────┬───────────┘
+                                                        │
+                                                        ▼
+                                              triage.score() → 0–100
+                                                        │
+                                          ┌─────────────┼─────────────┐
+                                          ▼             ▼             ▼
+                                       score<20      20≤score<70   score≥70
+                                       alert_only    annotate      quarantine
+                                                         │             │
+                                                    patch pod     NetworkPolicy
+                                                    annotation    + label pod
+                                                                  + CW metric
 ```
 
-## Components
+### Triage Scoring
 
-| Component | Purpose |
-|-----------|---------|
-| `app/` | Python Flask API — intentionally vulnerable test subject |
-| `terraform/` | AWS EKS cluster, VPC, ECR, and IRSA provisioning |
-| `k8s/` | Kubernetes manifests and Calico network policies |
-| `falco/` | Falco Helm values and custom detection rules |
-| `lambda/` | Python Lambda for automated pod quarantine |
-| `.github/workflows/` | CI pipeline with Trivy vulnerability gate |
+| Factor | Points |
+|--------|--------|
+| Privileged container | +40 |
+| `cluster-admin` service account | +35 |
+| `LoadBalancer` service (internet-exposed) | +25 |
+| System namespace (`kube-system`, `falco`) | +20 |
+| `hostNetwork: true` | +20 |
+| `hostPID: true` | +20 |
+| NodePort service | +15 |
+| Dangerous Linux capabilities | +15 |
+| Runs as root | +10 |
+| Production namespace label | +10 |
+| Staging namespace label | +5 |
+| Non-default role bindings | +5 |
+| Dev/demo namespace label | −10 |
 
-## Runtime Threat Detection (Falco)
+**Actions:**
+- `score < 20` → `alert_only` — log + `TriageScore` metric, no Kubernetes changes
+- `20 ≤ score < 70` → `annotate` — patch pod with `triage-severity` and `triage-reason` annotations
+- `score ≥ 70` → `quarantine` — label pod `quarantine=true`, apply deny-all NetworkPolicy, emit `QuarantineApplied` metric
 
-Falco runs as a DaemonSet on every worker node and streams kernel syscall events to detect malicious activity inside running containers.
+---
 
-### Installation
+## Key Design Decisions
 
-```bash
-helm repo add falcosecurity https://falcosecurity.github.io/charts
-helm repo update
+**Why the `kubernetes` Python client and not `kubectl`?**
+Bundling a `kubectl` binary in a Lambda deployment package is fragile — version drift, binary compatibility issues, and subprocess error handling. The Python client handles kubeconfig parsing, API server TLS, and retry logic natively.
 
-kubectl create namespace falco
+**Why IRSA and not instance profiles?**
+Instance profiles grant the same permissions to every pod on the node. IRSA issues short-lived OIDC tokens scoped to a specific service account — a compromised pod cannot use the credentials of any other pod on the same node.
 
-helm install falco falcosecurity/falco \
-  --namespace falco \
-  --version 4.3.0 \
-  -f falco/values.yaml \
-  --set-file falco.rules_file[0]=falco/rules/custom-rules.yaml
+**Why Calico's `crd.projectcalico.org/v1` and not standard `networking.k8s.io/v1`?**
+Standard NetworkPolicy has no `order` field. Calico's CRD supports `order`, which makes policy priority explicit and deterministic — critical when layering a default-deny at `order: 1000` over allow rules at `order: 100–200`.
+
+**Why intentional CVEs in the Flask app?**
+The CI Trivy gate exists to prove it works. Fixing the CVEs would make the gate pass silently — leaving nothing to demonstrate. The pipeline stays visibly red by design.
+
+**Why triage before quarantine?**
+Blind quarantine is operationally expensive and trains responders to ignore alerts. Context-aware scoring means the quarantine signal carries weight — when it fires, it means something genuinely high-risk was detected, not just any anomalous syscall.
+
+---
+
+## Repository Layout
+
+```
+k8s-threat-locator/
+├── app/                    Python Flask API (intentionally vulnerable victim app)
+├── terraform/              EKS, VPC, ECR, IRSA — all infra in one apply
+│   └── modules/            vpc / eks / ecr / irsa
+├── k8s/                    Kubernetes manifests + Calico network policies
+├── falco/                  Helm values + custom Falco rules
+├── lambda/                 Triage engine + quarantine responder (Python + SAM)
+│   ├── handler.py          Entry point — parse → enrich → score → act
+│   ├── triage.py           Context enrichment and scoring logic
+│   ├── template.yaml       SAM template — Lambda, DLQ, CloudWatch alarms
+│   └── tests/              pytest unit tests for triage scoring
+├── scripts/
+│   └── simulate-attack.sh  End-to-end attack simulation
+└── .github/workflows/      CI pipeline with Trivy vulnerability gate
 ```
 
-### Custom Rules
+---
 
-| Rule | Trigger | Priority |
-|------|---------|---------|
-| `shell_in_container` | Shell binary spawned in container (e.g. `kubectl exec ... -- sh`) | ERROR |
-| `write_to_etc` | Any file opened for write under `/etc/` inside a container | ERROR |
-| `unexpected_outbound_connection` | Outbound connection from `items-api` on port other than 443/53/5000 | WARNING |
+## Security Controls at a Glance
 
-### Testing Rules
+| Stage | Control | Proof |
+|-------|---------|-------|
+| Build | Trivy CVE gate | CI pipeline is permanently red on `Flask==1.0.0` |
+| Deploy | Calico default-deny | `kubectl run test -- ping 8.8.8.8` times out |
+| Runtime | IRSA | `aws sts get-caller-identity` returns scoped role ARN |
+| Runtime | Falco | Alert fires within seconds of `kubectl exec` |
+| Response | Triage + quarantine | `kubectl get netpol` shows quarantine policy; CW metric emitted |
 
-```bash
-# trigger shell_in_container
-kubectl exec -it -n threat-demo deploy/items-api -- /bin/sh
+---
 
-# trigger write_to_etc
-kubectl exec -n threat-demo deploy/items-api -- sh -c "echo test > /etc/pwned"
-```
+## Quick Start
 
-Falco logs are JSON-formatted and forwarded to SNS via Falcosidekick when `falcosidekick.config.aws.sns.topicarn` is set.
-
-> **Note:** Falco requires privileged access to the host kernel. The DaemonSet pods run with elevated permissions by design. The `falco` namespace should have strict RBAC to limit who can read Falco alerts.
->
-> Create the namespace before running Helm: `kubectl create namespace falco`
-
-> **Kernel module compatibility:** The default `driver.kind: module` requires the EKS worker node AMI to include kernel headers. Amazon Linux 2 (AL2_x86_64) includes them. If you use a custom AMI or Bottlerocket nodes, switch to `driver.kind: ebpf` in `falco/values.yaml`.
-
-## Network Security (Calico)
-
-The cluster uses Calico as the CNI plugin. All pods in the `threat-demo` namespace are subject to a default-deny posture enforced by a Calico `NetworkPolicy` with `order: 1000`. Explicit allow policies with lower order values are then layered on top:
-
-| Policy | Order | Purpose |
-|--------|-------|---------|
-| `default-deny` | 1000 | Block all ingress and egress unless explicitly allowed |
-| `allow-dns-egress` | 100 | Allow UDP/TCP port 53 to kube-dns |
-| `allow-ingress-items-api` | 200 | Allow port 5000 ingress from `role=frontend` pods |
-| `allow-egress-items-api` | 200 | Allow HTTPS (443) egress to AWS STS/S3 for IRSA |
-
-Apply policies in this order to avoid a connectivity outage during initial deployment (allow rules must be in place before the deny catches up):
-
-```bash
-kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/network-policies/allow-dns.yaml
-kubectl apply -f k8s/network-policies/allow-ingress-app.yaml
-kubectl apply -f k8s/network-policies/allow-egress-app.yaml
-kubectl apply -f k8s/network-policies/default-deny.yaml  # apply deny last
-```
-
-> **Requires Calico** installed as the cluster CNI. The `crd.projectcalico.org/v1` API version is Calico-specific and will not work with the standard `networking.k8s.io/v1` NetworkPolicy.
->
-> Install Calico before applying these policies:
-> ```bash
-> kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/tigera-operator.yaml
-> kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/custom-resources.yaml
-> ```
-
-## IRSA (IAM Roles for Service Accounts)
-
-Pods in the `threat-demo` namespace are granted AWS credentials through IRSA rather than instance profiles. The flow:
-
-1. EKS creates a projected OIDC token for each pod and mounts it at `/var/run/secrets/eks.amazonaws.com/serviceaccount/token`.
-2. The AWS SDK exchanges this token with STS (`AssumeRoleWithWebIdentity`).
-3. STS validates the token against the cluster OIDC provider and checks that both `aud = sts.amazonaws.com` and `sub = system:serviceaccount:threat-demo:app-sa` match.
-4. STS returns short-lived credentials scoped to the `irsa-app` IAM role.
-5. The role only has `s3:GetObject` and `s3:ListBucket` on the specific app bucket.
-
-After `terraform apply`, annotate the ServiceAccount:
-
-```bash
-ROLE_ARN=$(terraform -chdir=terraform output -raw irsa_role_arn)
-kubectl annotate serviceaccount app-sa \
-  -n threat-demo \
-  eks.amazonaws.com/role-arn=$ROLE_ARN
-```
-
-## Terraform
-
-All AWS infrastructure is provisioned via Terraform. The root module composes four child modules: `vpc`, `eks`, `ecr`, and `irsa`.
+### 1. Provision infrastructure
 
 ```bash
 cd terraform
 
-# create the S3 bucket and DynamoDB table for state first (one-time)
+# One-time: create S3 bucket + DynamoDB table for Terraform state
 aws s3 mb s3://k8s-threat-locator-tfstate
 aws dynamodb create-table \
   --table-name k8s-threat-locator-tflock \
@@ -156,304 +172,179 @@ aws dynamodb create-table \
   --key-schema AttributeName=LockID,KeyType=HASH \
   --billing-mode PAY_PER_REQUEST
 
-terraform init
-terraform plan -out=tfplan
-terraform apply tfplan
+terraform init && terraform apply
 ```
 
-> **Warning:** `terraform destroy` will delete the EKS cluster, node groups, VPC, and all associated resources. This is irreversible. Drain and delete all workloads first and ensure the S3 state bucket is backed up.
-
-## Automated Incident Response (Lambda)
-
-> **Design rationale:** The Lambda uses the `kubernetes` Python client (not `kubectl`) to apply the quarantine policy. This avoids bundling a binary in the deployment package, and the Python client handles kubeconfig parsing and API server communication natively — more robust than shelling out to `kubectl` in a subprocess.
-
-When Falco fires an `ERROR` or `CRITICAL` alert, Falcosidekick forwards the JSON payload to an SNS topic. A Lambda function subscribed to that topic:
-
-1. Parses the Falco alert and extracts `k8s.pod.name` and `k8s.ns.name` from `output_fields`
-2. Downloads a kubeconfig from S3 to `/tmp/kubeconfig`
-3. Labels the offending pod with `quarantine: "true"`
-4. Creates a `NetworkPolicy` that denies all ingress and egress for pods with that label
-5. Emits a `QuarantineApplied` CloudWatch metric
-6. Cleans up the kubeconfig from `/tmp` regardless of success or failure
-
-The SNS subscription uses a `FilterPolicy` so only `ERROR` and `CRITICAL` priority alerts invoke the Lambda — `WARNING` alerts (e.g. `shell_in_container`) are logged by Falco but do not trigger automatic isolation.
-
-## Lambda Prerequisites
-
-Before deploying Lambda, the following must exist:
-
-1. The SNS topic ARN output from Falcosidekick configuration
-2. An S3 bucket with the kubeconfig uploaded (see [Prerequisites](#prerequisites))
-3. The EKS cluster must be reachable from the Lambda's VPC — either via the private API endpoint with VPC peering, or by placing the Lambda in the same VPC as the cluster
-
-The Lambda execution role needs `s3:GetObject` on the exact kubeconfig key — scoped in `lambda/template.yaml`. It does **not** need `eks:*` permissions; access is gated by the kubeconfig itself.
-
-## Lambda Deployment (SAM)
-
-The `lambda/` directory is a SAM application. Deploy it after the EKS cluster and SNS topic exist.
+### 2. Apply Kubernetes manifests
 
 ```bash
-# Package and deploy
+# Apply in this order — allow rules before the deny catches up
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/resourcequota.yaml
+kubectl apply -f k8s/network-policies/allow-dns.yaml
+kubectl apply -f k8s/network-policies/allow-ingress-app.yaml
+kubectl apply -f k8s/network-policies/allow-egress-app.yaml
+kubectl apply -f k8s/network-policies/default-deny.yaml
+kubectl apply -f k8s/serviceaccount.yaml
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
+```
+
+### 3. Deploy Falco
+
+```bash
+helm repo add falcosecurity https://falcosecurity.github.io/charts && helm repo update
+
+helm install falco falcosecurity/falco \
+  --namespace falco --create-namespace \
+  --version 4.3.0 \
+  -f falco/values.yaml \
+  --set-file falco.rules_file[0]=falco/rules/custom-rules.yaml
+```
+
+Set `falcosidekick.config.aws.sns.topicarn` in `falco/values.yaml` to the SNS topic ARN before installing.
+
+### 4. Deploy the Lambda triage responder
+
+```bash
+# Upload kubeconfig so Lambda can reach the cluster
+aws s3 cp ~/.kube/config s3://<your-kubeconfig-bucket>/kubeconfig
+
 sam build --template lambda/template.yaml
 
 sam deploy \
-  --template lambda/template.yaml \
   --stack-name k8s-threat-locator-lambda \
   --capabilities CAPABILITY_NAMED_IAM \
   --parameter-overrides \
-    SnsTopicArn=<falcosidekick-sns-topic-arn> \
-    KubeconfigBucket=<your-kubeconfig-bucket> \
-    KubeconfigKey=kubeconfig
+    SnsTopicArn=<sns-topic-arn> \
+    KubeconfigBucket=<your-kubeconfig-bucket>
 ```
 
-Upload the kubeconfig before deploying so the Lambda can reach the cluster:
+### 5. Simulate an attack
 
 ```bash
-aws s3 cp ~/.kube/config s3://<your-kubeconfig-bucket>/kubeconfig
+make simulate-attack
+# or directly:
+./scripts/simulate-attack.sh
 ```
 
-> **Security note:** The kubeconfig grants cluster access. Restrict the S3 bucket to the Lambda execution role only and enable S3 server-side encryption.
+The script triggers the `write_to_etc` Falco rule, polls for the quarantine NetworkPolicy, and prints the result with timing.
 
-## Component Versions
+---
 
-| Component | Version | Notes |
-|-----------|---------|-------|
-| Python (Lambda) | 3.11 | Lambda runtime |
-| Python (app) | 3.9.18 | Docker base image |
-| Flask | 1.0.0 | Intentionally vulnerable |
-| Werkzeug | 0.14.1 | Intentionally vulnerable |
-| kubernetes (Python client) | 29.0.0 | Lambda Kubernetes SDK |
-| urllib3 | < 2 | Pinned to avoid botocore incompatibility |
-| Terraform | >= 1.6.0 | Infrastructure provisioning |
-| AWS provider | ~> 5.0 | Terraform AWS provider |
-| TLS provider | ~> 4.0 | OIDC thumbprint for IRSA |
-| Falco Helm chart | 4.3.0 | Runtime threat detection |
-| Calico | via EKS managed add-on | CNI + NetworkPolicy engine |
-| Trivy action | v0.20.0 | CI vulnerability scanner |
-| ruff | v0.3.0 | Python linter (pre-commit) |
+## Falco Custom Rules
 
-## Prerequisites
+| Rule | Trigger | Priority | Response |
+|------|---------|----------|----------|
+| `shell_in_container` | Shell binary spawned in container | ERROR | Triage → quarantine if score ≥ 70 |
+| `write_to_etc` | File write under `/etc/` inside container | ERROR | Triage → quarantine if score ≥ 70 |
+| `unexpected_outbound_connection` | Outbound from `items-api` on non-standard port | WARNING | Triage → annotate or alert_only |
 
-- AWS CLI configured with appropriate permissions and a profile that can create EKS, VPC, IAM, ECR, SNS, Lambda, CloudWatch, and S3 resources
-- Terraform >= 1.6.0
-- kubectl (version matching the EKS cluster version)
-- Helm >= 3.x
-- Docker (for local builds)
-- AWS SAM CLI (for Lambda deployment)
-- Python 3.11+ (for local Lambda testing)
-- pre-commit (optional, for local linting: `pip install pre-commit && pre-commit install`)
+All rules output: `container.id`, `container.name`, `k8s.pod.name`, `k8s.ns.name`, `k8s.pod.uid`, `container.image.repository`, `container.image.tag`.
 
-The Lambda also requires a kubeconfig uploaded to S3 before deployment:
+---
+
+## IRSA (IAM Roles for Service Accounts)
+
+Pods get AWS credentials through IRSA rather than instance profiles:
+
+1. EKS projects an OIDC token into the pod at `/var/run/secrets/eks.amazonaws.com/serviceaccount/token`
+2. The AWS SDK calls `sts:AssumeRoleWithWebIdentity` with that token
+3. STS validates both `aud = sts.amazonaws.com` **and** `sub = system:serviceaccount:threat-demo:app-sa`
+4. STS returns short-lived credentials scoped to `s3:GetObject` on the specific app bucket — nothing else
 
 ```bash
-aws s3api create-bucket --bucket <your-kubeconfig-bucket> --region us-east-1
-aws s3api put-bucket-versioning \
-  --bucket <your-kubeconfig-bucket> \
-  --versioning-configuration Status=Enabled
-aws s3 cp ~/.kube/config s3://<your-kubeconfig-bucket>/kubeconfig
+ROLE_ARN=$(terraform -chdir=terraform output -raw irsa_role_arn)
+kubectl annotate serviceaccount app-sa -n threat-demo \
+  eks.amazonaws.com/role-arn=$ROLE_ARN
 ```
 
-## API Endpoints
+---
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/health` | Liveness check — returns `{"status": "ok"}` |
-| `GET` | `/items` | List all items |
-| `GET` | `/items/<id>` | Get a single item by UUID |
-| `POST` | `/items` | Create an item — body: `{"name": "<string>"}` |
-| `DELETE` | `/items/<id>` | Delete an item — returns 204 |
-
-## Getting Started
-
-Quickstart order:
-
-1. [Terraform](#terraform) — provision EKS, VPC, ECR, IRSA
-2. [Network Security](#network-security-calico) — install Calico, apply network policies
-3. [IRSA](#irsa-iam-roles-for-service-accounts) — annotate the ServiceAccount with the IAM role ARN
-4. [Runtime Threat Detection](#runtime-threat-detection-falco) — deploy Falco via Helm
-5. [Lambda Deployment](#lambda-deployment-sam) — deploy the quarantine responder
-6. [End-to-End Attack Simulation](#end-to-end-attack-simulation) — verify the full pipeline
-
-## Architecture Overview
-
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│  Developer pushes to main                                                    │
-└──────────────────────────────┬───────────────────────────────────────────────┘
-                               │
-                               ▼
-┌──────────────────────────────────────────────────────────────────────────────┐
-│  GitHub Actions CI                                                           │
-│                                                                              │
-│  [build] docker build app/                                                   │
-│       │                                                                      │
-│       ▼                                                                      │
-│  [trivy-scan] scan image for CVEs                                            │
-│       │  ├─ upload SARIF → GitHub Security tab                               │
-│       │  └─ exit 1 if CRITICAL CVEs found  ◄── pipeline stops here          │
-│       │        (Flask==1.0.0 always triggers this)                           │
-│       ▼                                                                      │
-│  [push] push to ECR  (never reached while CVEs remain)                       │
-└──────────────────────────────────────────────────────────────────────────────┘
-
-┌──────────────────────────────────────────────────────────────────────────────┐
-│  AWS EKS Cluster  (us-east-1, private endpoint)                              │
-│                                                                              │
-│  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │  threat-demo namespace                                               │    │
-│  │                                                                      │    │
-│  │  [Calico default-deny order:1000]  ← blocks all unless allowed      │    │
-│  │  [allow-dns     order:100]         ← UDP/TCP 53 to kube-dns         │    │
-│  │  [allow-ingress order:200]         ← port 5000 from role=frontend   │    │
-│  │  [allow-egress  order:200]         ← HTTPS/443 to AWS (IRSA)        │    │
-│  │                                                                      │    │
-│  │  ┌──────────────────────────────────────────────┐                   │    │
-│  │  │  items-api pod (Flask, runs as root)          │                   │    │
-│  │  │  ServiceAccount: app-sa (IRSA → s3:GetObject) │                   │    │
-│  │  └──────────────────────────────────────────────┘                   │    │
-│  └─────────────────────────────────────────────────────────────────────┘    │
-│                                                                              │
-│  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │  falco namespace                                                     │    │
-│  │  Falco DaemonSet — watches kernel syscalls on every worker node      │    │
-│  │  Rules: shell_in_container · write_to_etc · unexpected_outbound      │    │
-│  │  Falcosidekick → forwards ERROR/CRITICAL alerts to SNS               │    │
-│  └─────────────────────────────────────────────────────────────────────┘    │
-└──────────────────────────────────────────────────────────────────────────────┘
-                               │ SNS (ERROR/CRITICAL only)
-                               ▼
-┌──────────────────────────────────────────────────────────────────────────────┐
-│  AWS Lambda  (k8s-threat-locator-responder)                                  │
-│                                                                              │
-│  1. Parse Falco JSON → extract pod name + namespace                          │
-│  2. Download kubeconfig from S3 → /tmp/kubeconfig                           │
-│  3. Patch pod: add label  quarantine=true                                    │
-│  4. Create NetworkPolicy: deny all ingress + egress to quarantine=true pods  │
-│  5. Emit CloudWatch metric  QuarantineApplied{Namespace, Pod}                │
-│  6. Delete /tmp/kubeconfig                                                   │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
-
-## End-to-End Attack Simulation
-
-Follow these steps to exercise the full detection-and-response pipeline on a running cluster.
-
-### 1. Trigger the Falco `write_to_etc` rule (ERROR priority → quarantine)
+## Running Tests
 
 ```bash
-# Exec into the running pod
-POD=$(kubectl get pod -n threat-demo -l app=items-api -o jsonpath='{.items[0].metadata.name}')
-
-# Write to /etc/ — triggers write_to_etc rule at ERROR priority
-kubectl exec -n threat-demo "$POD" -- sh -c "echo pwned > /etc/pwned"
+make lambda-test
+# equivalent to:
+cd lambda && python -m pytest tests/ -v
 ```
 
-Within a few seconds Falco logs the alert, Falcosidekick pushes it to SNS, and Lambda quarantines the pod.
+Tests cover all triage scoring branches and enrichment paths (privileged containers, LoadBalancer exposure, cluster-admin bindings, pod-not-found fallback, RBAC permission denied) with fully mocked Kubernetes and AWS clients.
 
-### 2. Verify the quarantine
-
-```bash
-# Pod should now be labelled
-kubectl get pod "$POD" -n threat-demo --show-labels | grep quarantine
-
-# NetworkPolicy should exist
-kubectl get networkpolicy -n threat-demo quarantine-"$POD"
-
-# Pod can no longer reach other pods or external endpoints
-kubectl exec -n threat-demo "$POD" -- curl -m 3 https://example.com  # should timeout
-```
-
-### 3. Verify the CloudWatch metric
-
-```bash
-aws cloudwatch get-metric-statistics \
-  --namespace k8s-threat-locator \
-  --metric-name QuarantineApplied \
-  --dimensions Name=Namespace,Value=threat-demo Name=Rule,Value=write_to_etc \
-  --start-time "$(date -u -v-5M +%FT%TZ)" \
-  --end-time "$(date -u +%FT%TZ)" \
-  --period 300 \
-  --statistics Sum
-```
-
-### 4. Trigger the `shell_in_container` rule (ERROR — also triggers quarantine)
-
-```bash
-# ERROR priority passes through the SNS filter policy and triggers Lambda
-kubectl exec -it -n threat-demo "$POD" -- /bin/sh
-```
-
-Falco fires the alert at ERROR priority, Falcosidekick forwards it to SNS, and Lambda quarantines the pod — same as the `write_to_etc` path.
-
-### Cleanup
-
-```bash
-# Remove the quarantine label and NetworkPolicy to restore connectivity
-kubectl label pod "$POD" -n threat-demo quarantine-
-kubectl delete networkpolicy "quarantine-$POD" -n threat-demo
-```
+---
 
 ## Troubleshooting
 
 **Falco alerts not reaching Lambda**
-- Confirm `falcosidekick.config.aws.sns.topicArn` is set in `falco/values.yaml`
-- Verify the Falcosidekick pod has IAM permissions to publish to SNS (use IRSA or node IAM role)
+- Set `falcosidekick.config.aws.sns.topicarn` in `falco/values.yaml`
 - Check Falcosidekick logs: `kubectl logs -n falco -l app=falco-falcosidekick`
+- Verify Falcosidekick IAM permission to `sns:Publish` on the topic
 
 **Lambda not applying quarantine**
 - Check CloudWatch Logs at `/aws/lambda/k8s-threat-locator-responder`
-- Verify the kubeconfig is uploaded to S3 and the Lambda role has `s3:GetObject` on the exact key ARN
-- Ensure the kubeconfig `server:` URL is reachable from the Lambda's VPC (or use EKS private endpoint with VPC peering)
-- Enable EKS API server access logging: `aws eks update-cluster-config --name <cluster> --logging '{"clusterLogging":[{"types":["api","audit"],"enabled":true}]}'` — lets you trace which identity the Lambda kubeconfig uses
+- Verify kubeconfig is in S3 and Lambda role has `s3:GetObject` on the exact key ARN
+- Ensure `server:` in kubeconfig points to the private EKS endpoint and is reachable from the Lambda VPC
+- Enable EKS audit logging: `aws eks update-cluster-config --name <cluster> --logging '{"clusterLogging":[{"types":["api","audit"],"enabled":true}]}'`
+
+**DLQ has messages**
+- A message in `k8s-threat-locator-dlq` means a quarantine attempt failed after retries
+- Check the Lambda CloudWatch Logs for the corresponding error
+- The `DLQDepthAlarm` CloudWatch alarm fires as soon as one message lands
+
+**Score is lower than expected**
+- Check the `TriageScore` CloudWatch metric dimensions for `Severity`
+- Add `environment=prod` label to the namespace to raise the score for production workloads
+- Review `triage.py:score()` — the full scoring table is in this README
 
 **NetworkPolicy not blocking traffic**
-- Calico must be the CNI. Verify: `kubectl get daemonset -n kube-system -l k8s-app=calico-node`
-- Standard Kubernetes `NetworkPolicy` resources cannot block traffic when Calico is not the CNI; Calico's `crd.projectcalico.org/v1` policies require Calico specifically
+- Calico must be the CNI: `kubectl get daemonset -n kube-system -l k8s-app=calico-node`
+- Quarantine NetworkPolicy targets pods with label `quarantine=true` — confirm the pod was labelled
 
-**Terraform apply fails on EKS OIDC**
-- The `tls_certificate` data source requires internet access to the OIDC endpoint. Ensure the Terraform runner can reach `oidc.eks.<region>.amazonaws.com`
+**Kernel module fails on nodes**
+- Switch to `driver.kind: ebpf` in `falco/values.yaml` for Bottlerocket or custom AMI nodes
 
-**Resource quota blocks pod creation**
-- If new pods are stuck in `Pending` with a quota exceeded event, check: `kubectl describe resourcequota -n threat-demo`. Adjust `pods` or `limits.cpu` in `k8s/resourcequota.yaml` and re-apply.
+---
 
-**pod receives quarantine label but policy selector does not match**
-- The quarantine NetworkPolicy targets pods with `quarantine: "true"` via `matchLabels`. Confirm the pod was labelled: `kubectl get pod <name> -n threat-demo --show-labels`
+## Prerequisites
 
-## Intentional Vulnerabilities
+- AWS CLI with permissions for EKS, VPC, IAM, ECR, SNS, Lambda, CloudWatch, S3, SQS
+- Terraform >= 1.6
+- kubectl matching the EKS cluster version
+- Helm >= 3.x
+- Docker (local builds)
+- AWS SAM CLI (Lambda deployment)
+- Python 3.11+ (`make lambda-test`)
 
-The `app/requirements.txt` pins old, CVE-laden versions of Flask and its dependencies. This is deliberate — the project exists to show that Trivy catches these before any image reaches the registry. In a real project you would pin to the latest patched versions. Here, leaving them unfixed keeps the Trivy gate visibly red so the shift-left control is easy to demonstrate.
+---
 
-> **Note:** The `push` job in CI will never succeed while these vulnerable versions remain pinned. That is intentional — it proves the gate works.
+## Component Versions
 
-## CI Pipeline
+| Component | Version |
+|-----------|---------|
+| Python (Lambda) | 3.11 |
+| Python (app) | 3.9.18 |
+| Flask | 1.0.0 (intentionally vulnerable) |
+| kubernetes Python client | 30.1.0 |
+| Terraform | >= 1.6.0 |
+| AWS provider | ~> 5.0 |
+| Falco Helm chart | 4.3.0 |
+| Calico | via EKS managed add-on |
+| Trivy action | v0.20.0 |
+| ruff | v0.3.0 |
 
-The pipeline runs on every push to `main` and every pull request targeting `main`. It has three sequential jobs:
-
-1. **build** — builds the Docker image locally (no push yet)
-2. **trivy-scan** — scans the image for vulnerabilities; uploads results to the GitHub Security tab as SARIF, then runs a hard gate that exits non-zero if any **CRITICAL** CVEs are found. The pipeline stops here.
-3. **push** — pushes to ECR with both `<sha>` and `latest` tags. This job only runs after the scan passes and only on pushes to `main`. Because the `app/requirements.txt` pins intentionally vulnerable Flask versions, this job will never actually run — which is the point.
-
-## Running Locally
-
-```bash
-cd app
-docker build -t k8s-threat-locator-app .
-docker run -p 5000:5000 k8s-threat-locator-app
-```
-
-Test the API:
-
-```bash
-curl http://localhost:5000/health
-curl http://localhost:5000/items
-curl -X POST http://localhost:5000/items -H "Content-Type: application/json" -d '{"name":"widget"}'
-```
+---
 
 ## Changelog
 
+### v0.2.0 (2026-06-27)
+- **Triage layer** — `lambda/triage.py` enriches each Falco alert with live pod context (spec flags, service exposure, RBAC bindings, namespace environment) and produces a 0–100 risk score
+- **Proportional response** — three action levels (`alert_only` / `annotate` / `quarantine`) replace the previous unconditional quarantine
+- **`TriageScore` CloudWatch metric** — emitted on every alert with `Severity` dimension for dashboarding
+- **Dead letter queue** — failed quarantine invocations land in SQS DLQ with 14-day retention
+- **CloudWatch alarms** — quarantine rate alarm (>5 in 5 min) and DLQ depth alarm (≥1 message)
+- **`scripts/simulate-attack.sh`** — end-to-end attack simulation with polling and timing output
+- **`make lambda-test`** — 16 pytest unit tests covering all scoring branches and enrichment paths
+- Production signals: MIT license, `SECURITY.md`, `Makefile`, PR template, `CODEOWNERS`
+
 ### v0.1.0 (2025-12-28)
-- Initial release — all six security layers implemented and documented
-- Flask victim app with intentional CVEs, Trivy CI gate, Terraform EKS/VPC/ECR/IRSA, Calico network policies, Falco custom rules, Lambda quarantine responder
-- VPC endpoints for S3 and STS to keep IRSA traffic off the public internet
-- Downward API env vars (POD_NAME, POD_NAMESPACE) injected into the app container
-- Rule name added as a CloudWatch dimension to the QuarantineApplied metric
+- Initial release — Flask victim app, Trivy CI gate, Terraform EKS/VPC/ECR/IRSA, Calico network policies, Falco custom rules, Lambda quarantine responder
