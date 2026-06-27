@@ -37,7 +37,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::222222222222:role/gh.logtailer.actions
+          role-to-assume: arn:aws:iam::261599401243:role/gh.logtailer.actions
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform
@@ -66,7 +66,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::222222222222:role/gh.logtailer.actions
+          role-to-assume: arn:aws:iam::261599401243:role/gh.logtailer.actions
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Log in to ECR
@@ -100,7 +100,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::222222222222:role/gh.logtailer.actions
+          role-to-assume: arn:aws:iam::261599401243:role/gh.logtailer.actions
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Update kubeconfig
@@ -151,7 +151,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::222222222222:role/gh.logtailer.actions
+          role-to-assume: arn:aws:iam::261599401243:role/gh.logtailer.actions
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Set up Python 3.11
