@@ -343,7 +343,7 @@ Tests cover all triage scoring branches and enrichment paths (privileged contain
 - **Dead letter queue** — failed quarantine invocations land in SQS DLQ with 14-day retention
 - **CloudWatch alarms** — quarantine rate alarm (>5 in 5 min) and DLQ depth alarm (≥1 message)
 - **`scripts/simulate-attack.sh`** — end-to-end attack simulation with polling and timing output
-- **`make lambda-test`** — 16 pytest unit tests covering all scoring branches and enrichment paths
+- **`make lambda-test`** — 19 pytest unit tests covering all scoring branches and enrichment paths
 - Production signals: MIT license, `SECURITY.md`, `Makefile`, PR template, `CODEOWNERS`
 
 ### v0.1.0 (2025-12-28)
