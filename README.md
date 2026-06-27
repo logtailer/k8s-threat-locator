@@ -84,14 +84,14 @@ Developer → GitHub Actions → Trivy CVE gate → ECR → EKS
 
 | Factor | Points |
 |--------|--------|
-| Privileged container | +40 |
-| `cluster-admin` service account | +35 |
-| `LoadBalancer` service (internet-exposed) | +25 |
-| System namespace (`kube-system`, `falco`) | +20 |
-| `hostNetwork: true` | +20 |
-| `hostPID: true` | +20 |
+| Privileged container | +70 |
+| `cluster-admin` service account | +70 |
+| `LoadBalancer` service (internet-exposed) | +40 |
+| `hostNetwork: true` | +40 |
+| `hostPID: true` | +30 |
+| System namespace (`kube-system`, `falco`) | +25 |
+| Dangerous Linux capabilities | +20 |
 | NodePort service | +15 |
-| Dangerous Linux capabilities | +15 |
 | Runs as root | +10 |
 | Production namespace label | +10 |
 | Staging namespace label | +5 |
