@@ -43,7 +43,8 @@ class TestScore:
         assert elevated.score > base.score
 
     def test_medium_score_annotates(self):
-        result = score(_ctx(runs_as_root=True, service_type="ClusterIP"))
+        # root (10) + NodePort (15) = 25 → medium/annotate
+        result = score(_ctx(runs_as_root=True, service_type="NodePort"))
         assert result.action == Action.ANNOTATE
         assert result.severity == "medium"
 
@@ -108,6 +109,7 @@ class TestEnrich:
         container.security_context.run_as_user = spec_kwargs.get("container_run_as_user", 1000)
         container.security_context.capabilities.add = spec_kwargs.get("caps", [])
         pod.spec.containers = [container]
+        pod.spec.init_containers = []  # must be explicit — unset MagicMock is truthy
         return pod
 
     def test_privileged_container_detected(self):

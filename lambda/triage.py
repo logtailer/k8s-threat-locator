@@ -172,34 +172,34 @@ def score(ctx: PodContext, alert_rule: str = "") -> TriageResult:
     reasons = []
 
     if ctx.has_privileged_container:
-        points += 40
+        points += 70
         reasons.append("privileged container")
     if ctx.has_cluster_admin:
-        points += 35
+        points += 70
         reasons.append("cluster-admin service account")
     elif ctx.cluster_role_names:
         points += 5
         reasons.append(f"non-default role bindings: {', '.join(ctx.cluster_role_names[:3])}")
     if ctx.service_type == "LoadBalancer":
-        points += 25
+        points += 40
         reasons.append("LoadBalancer service (internet-exposed)")
     elif ctx.service_type == "NodePort":
         points += 15
         reasons.append("NodePort service")
     if ctx.has_host_network:
-        points += 20
+        points += 40
         reasons.append("hostNetwork=true")
     if ctx.has_host_pid:
-        points += 20
+        points += 30
         reasons.append("hostPID=true")
     if ctx.has_dangerous_caps:
-        points += 15
+        points += 20
         reasons.append("dangerous Linux capabilities")
     if ctx.runs_as_root:
         points += 10
         reasons.append("runs as root")
     if ctx.is_system_namespace:
-        points += 20
+        points += 25
         reasons.append("system namespace")
     if ctx.namespace_env in ("prod", "production"):
         points += 10
