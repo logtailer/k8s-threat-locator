@@ -3,15 +3,12 @@ name: Deploy
 on:
   workflow_dispatch:
     inputs:
+      ecr_url:
+        description: ECR repository URL (e.g. 261599401243.dkr.ecr.us-east-1.amazonaws.com/k8s-threat-locator)
+        required: true
       image_tag:
         description: Docker image tag (leave blank to use commit SHA)
         required: false
-      sns_topic_arn:
-        description: SNS topic ARN for Falcosidekick
-        required: true
-      kubeconfig_bucket:
-        description: S3 bucket name for kubeconfig
-        required: true
 
 permissions:
   id-token: write
@@ -21,45 +18,9 @@ env:
   AWS_REGION: us-east-1
 
 jobs:
-  tf-outputs:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    outputs:
-      ecr_url: ${{ steps.out.outputs.ecr_url }}
-      cluster_name: ${{ steps.out.outputs.cluster_name }}
-      irsa_role_arn: ${{ steps.out.outputs.irsa_role_arn }}
-    defaults:
-      run:
-        working-directory: terraform
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::261599401243:role/gh.logtailer.actions
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "~> 1.6"
-          terraform_wrapper: false
-
-      - name: Terraform Init
-        run: terraform init
-
-      - name: Read outputs
-        id: out
-        run: |
-          echo "ecr_url=$(terraform output -raw ecr_repository_url)" >> $GITHUB_OUTPUT
-          echo "cluster_name=$(terraform output -raw cluster_name)" >> $GITHUB_OUTPUT
-          echo "irsa_role_arn=$(terraform output -raw irsa_role_arn)" >> $GITHUB_OUTPUT
-
   push-image:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: tf-outputs
     steps:
       - uses: actions/checkout@v4
 
@@ -87,106 +48,29 @@ jobs:
           context: ./app
           push: true
           tags: |
-            ${{ needs.tf-outputs.outputs.ecr_url }}:${{ steps.tag.outputs.value }}
-            ${{ needs.tf-outputs.outputs.ecr_url }}:latest
+            ${{ inputs.ecr_url }}:${{ steps.tag.outputs.value }}
+            ${{ inputs.ecr_url }}:latest
 
-  deploy-k8s:
+  verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: [tf-outputs, push-image]
+    timeout-minutes: 5
+    needs: push-image
     steps:
-      - uses: actions/checkout@v4
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::261599401243:role/gh.logtailer.actions
           aws-region: ${{ env.AWS_REGION }}
-
-      - name: Update kubeconfig
-        run: |
-          aws eks update-kubeconfig \
-            --name ${{ needs.tf-outputs.outputs.cluster_name }} \
-            --region ${{ env.AWS_REGION }}
 
       - name: Resolve image tag
         id: tag
         run: echo "value=${{ inputs.image_tag || github.sha }}" >> $GITHUB_OUTPUT
 
-      - name: Substitute image in deployment manifest
+      - name: Confirm image exists in ECR
         run: |
-          sed -i \
-            "s|<ECR_REPO_URL>/k8s-threat-locator:<IMAGE_TAG>|${{ needs.tf-outputs.outputs.ecr_url }}:${{ steps.tag.outputs.value }}|" \
-            k8s/deployment.yaml
-
-      - name: Apply manifests
-        run: |
-          kubectl apply -f k8s/namespace.yaml
-          kubectl apply -f k8s/resourcequota.yaml
-          kubectl apply -f k8s/network-policies/allow-dns.yaml
-          kubectl apply -f k8s/network-policies/allow-ingress-app.yaml
-          kubectl apply -f k8s/network-policies/allow-egress-app.yaml
-          kubectl apply -f k8s/network-policies/default-deny.yaml
-          kubectl apply -f k8s/serviceaccount.yaml
-          kubectl apply -f k8s/deployment.yaml
-          kubectl apply -f k8s/service.yaml
-
-      - name: Annotate ServiceAccount with IRSA role
-        run: |
-          kubectl annotate serviceaccount app-sa \
-            -n threat-demo \
-            eks.amazonaws.com/role-arn=${{ needs.tf-outputs.outputs.irsa_role_arn }} \
-            --overwrite
-
-      - name: Wait for rollout
-        run: kubectl rollout status deployment/items-api -n threat-demo --timeout=120s
-
-  deploy-lambda:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    needs: [tf-outputs, deploy-k8s]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::261599401243:role/gh.logtailer.actions
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install SAM CLI
-        run: pip install aws-sam-cli --quiet
-
-      - name: Create kubeconfig bucket if absent
-        run: |
-          aws s3 mb s3://${{ inputs.kubeconfig_bucket }} \
-            --region ${{ env.AWS_REGION }} 2>/dev/null || true
-
-      - name: Upload kubeconfig to S3
-        run: |
-          aws eks update-kubeconfig \
-            --name ${{ needs.tf-outputs.outputs.cluster_name }} \
-            --region ${{ env.AWS_REGION }}
-          aws s3 cp ~/.kube/config s3://${{ inputs.kubeconfig_bucket }}/kubeconfig
-
-      - name: SAM build
-        working-directory: lambda
-        run: sam build --template template.yaml
-
-      - name: SAM deploy
-        working-directory: lambda
-        run: |
-          sam deploy \
-            --stack-name k8s-threat-locator-lambda \
-            --capabilities CAPABILITY_NAMED_IAM \
+          aws ecr describe-images \
+            --repository-name k8s-threat-locator \
+            --image-ids imageTag=${{ steps.tag.outputs.value }} \
             --region ${{ env.AWS_REGION }} \
-            --no-confirm-changeset \
-            --no-fail-on-empty-changeset \
-            --parameter-overrides \
-              SnsTopicArn=${{ inputs.sns_topic_arn }} \
-              KubeconfigBucket=${{ inputs.kubeconfig_bucket }}
+            --query 'imageDetails[0].{digest:imageDigest,pushed:imagePushedAt,size:imageSizeInBytes}' \
+            --output table
