@@ -36,10 +36,14 @@ resource "aws_eks_cluster" "this" {
   role_arn = aws_iam_role.cluster.arn
 
   vpc_config {
-    subnet_ids = var.private_subnet_ids
-    # Private endpoint only — API server not reachable from the internet
+    subnet_ids              = var.private_subnet_ids
     endpoint_private_access = true
-    endpoint_public_access  = false
+    endpoint_public_access  = true
+  }
+
+  access_config {
+    authentication_mode                         = "API_AND_CONFIG_MAP"
+    bootstrap_cluster_creator_admin_permissions = true
   }
 
   enabled_cluster_log_types = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
@@ -163,8 +167,8 @@ resource "aws_eks_node_group" "this" {
   node_role_arn   = aws_iam_role.node_group.arn
   subnet_ids      = var.private_subnet_ids
 
-  # AL2_x86_64: Amazon Linux 2 on x86. Switch to AL2_ARM_64 for Graviton cost savings.
-  ami_type       = "AL2_x86_64"
+  # AL2023_x86_64_STANDARD: required for EKS 1.31+. AL2 reached EOL for newer versions.
+  ami_type       = "AL2023_x86_64_STANDARD"
   instance_types = [var.node_instance_type]
 
   scaling_config {
