@@ -13,7 +13,7 @@ variable "cluster_name" {
 variable "cluster_version" {
   description = "Kubernetes version for the EKS cluster. Align with EKS supported versions."
   type        = string
-  default     = "1.29"
+  default     = "1.36"
 }
 
 variable "vpc_cidr" {
@@ -37,6 +37,7 @@ variable "project" {
 variable "app_s3_bucket_name" {
   description = "Name of the S3 bucket the app pod needs read access to via IRSA"
   type        = string
+  default     = "logtailer-terraform"
 }
 
 variable "node_instance_type" {
