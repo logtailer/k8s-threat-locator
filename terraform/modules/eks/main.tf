@@ -112,37 +112,37 @@ resource "aws_iam_role_policy_attachment" "node_ecr_read" {
 }
 
 resource "aws_eks_addon" "vpc_cni" {
-  cluster_name = aws_eks_cluster.this.name
-  addon_name   = "vpc-cni"
-  # vpc-cni must be present before coredns and other addons
-  tags = local.tags
+  cluster_name                = aws_eks_cluster.this.name
+  addon_name                  = "vpc-cni"
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+  tags                        = local.tags
 }
 
 resource "aws_eks_addon" "coredns" {
-  cluster_name = aws_eks_cluster.this.name
-  addon_name   = "coredns"
+  cluster_name                = aws_eks_cluster.this.name
+  addon_name                  = "coredns"
   resolve_conflicts_on_create = "OVERWRITE"
-
-  tags = local.tags
-
-  depends_on = [aws_eks_node_group.this]
+  resolve_conflicts_on_update = "OVERWRITE"
+  tags                        = local.tags
+  depends_on                  = [aws_eks_node_group.this]
 }
 
 resource "aws_eks_addon" "kube_proxy" {
   cluster_name                = aws_eks_cluster.this.name
   addon_name                  = "kube-proxy"
   resolve_conflicts_on_create = "OVERWRITE"
-
-  tags = local.tags
+  resolve_conflicts_on_update = "OVERWRITE"
+  tags                        = local.tags
 }
 
 resource "aws_eks_addon" "ebs_csi_driver" {
-  cluster_name = aws_eks_cluster.this.name
-  addon_name   = "aws-ebs-csi-driver"
-
-  tags = local.tags
-
-  depends_on = [aws_eks_node_group.this]
+  cluster_name                = aws_eks_cluster.this.name
+  addon_name                  = "aws-ebs-csi-driver"
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+  tags                        = local.tags
+  depends_on                  = [aws_eks_node_group.this]
 }
 
 # The OIDC thumbprint is fetched from the issuer URL at plan time.
