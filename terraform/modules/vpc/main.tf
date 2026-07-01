@@ -140,4 +140,28 @@ resource "aws_vpc_endpoint" "sts" {
   })
 }
 
+resource "aws_vpc_endpoint" "ecr_api" {
+  vpc_id              = aws_vpc.this.id
+  service_name        = "com.amazonaws.${data.aws_region.current.name}.ecr.api"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  private_dns_enabled = true
+
+  tags = merge(local.tags, {
+    Name = "${var.project}-ecr-api-endpoint"
+  })
+}
+
+resource "aws_vpc_endpoint" "ecr_dkr" {
+  vpc_id              = aws_vpc.this.id
+  service_name        = "com.amazonaws.${data.aws_region.current.name}.ecr.dkr"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  private_dns_enabled = true
+
+  tags = merge(local.tags, {
+    Name = "${var.project}-ecr-dkr-endpoint"
+  })
+}
+
 data "aws_region" "current" {}
