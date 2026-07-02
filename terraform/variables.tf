@@ -40,6 +40,12 @@ variable "app_s3_bucket_name" {
   default     = "logtailer-terraform"
 }
 
+variable "eks_public_access_cidrs" {
+  description = "CIDR blocks permitted to reach the EKS public API endpoint. Set to your IP or VPN CIDR in production."
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+}
+
 variable "node_instance_type" {
   description = "EC2 instance type for EKS managed node group workers"
   type        = string
