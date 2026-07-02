@@ -57,3 +57,9 @@ variable "max_nodes" {
   type        = number
   default     = 3
 }
+
+variable "cluster_public_access_cidrs" {
+  description = "CIDR blocks permitted to reach the public Kubernetes API endpoint. Restrict to your IP or VPN range in production."
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+}
