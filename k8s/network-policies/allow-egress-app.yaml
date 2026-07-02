@@ -20,10 +20,18 @@ spec:
           - "0.0.0.0/0"
         ports:
           - 443
-    # Allow outbound on port 5000 for health checks from within the cluster
+    # Allow outbound on port 5000 for inter-pod health checks within the cluster
     - action: Allow
       protocol: TCP
       destination:
         ports:
           - 5000
+    # Allow outbound to kube-apiserver on 443 for downward API and readiness gates
+    - action: Allow
+      protocol: TCP
+      destination:
+        nets:
+          - "10.0.0.0/8"
+        ports:
+          - 443
     # Deny all other egress — falls through to default-deny at order 1000
