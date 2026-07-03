@@ -110,6 +110,7 @@ def _get_k8s_clients() -> tuple:
         client.CoreV1Api(k8s_client),
         client.NetworkingV1Api(k8s_client),
         client.RbacAuthorizationV1Api(k8s_client),
+        client.AppsV1Api(k8s_client),
         ca_cert_path,
     )
 
@@ -220,10 +221,10 @@ def handler(event, context):
         ca_cert_path = None
         try:
             _download_kubeconfig()
-            core_v1, networking_v1, rbac_v1, ca_cert_path = _get_k8s_clients()
+            core_v1, networking_v1, rbac_v1, apps_v1, ca_cert_path = _get_k8s_clients()
             logger.info("Kubernetes clients initialised for pod %s/%s", namespace, pod_name)
 
-            ctx = enrich(core_v1, rbac_v1, pod_name, namespace)
+            ctx = enrich(core_v1, rbac_v1, pod_name, namespace, apps_v1=apps_v1)
             result = score(ctx, alert_rule=rule)
             _emit_triage_metric(pod_name, namespace, result.severity)
 
