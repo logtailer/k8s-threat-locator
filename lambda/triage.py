@@ -34,6 +34,9 @@ class PodContext:
     # Namespace
     namespace_env: str = ""      # value of label environment=
     is_system_namespace: bool = False
+    # Owner workload — populated when pod is still alive at enrichment time
+    owner_kind: str = ""         # Deployment | StatefulSet | DaemonSet | ReplicaSet | ""
+    owner_name: str = ""
 
 
 @dataclass
