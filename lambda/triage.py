@@ -72,6 +72,7 @@ def enrich(
     rbac_v1: client.RbacAuthorizationV1Api,
     pod_name: str,
     namespace: str,
+    apps_v1: client.AppsV1Api | None = None,
 ) -> PodContext:
     ctx = PodContext(pod_name=pod_name, namespace=namespace)
     ctx.is_system_namespace = namespace in _SYSTEM_NAMESPACES
@@ -83,6 +84,8 @@ def enrich(
         _enrich_service_exposure(ctx, core_v1, pod, namespace)
         _enrich_rbac(ctx, rbac_v1, namespace)
         _enrich_namespace(ctx, core_v1, namespace)
+        if apps_v1 is not None:
+            _enrich_owner(ctx, apps_v1, pod, namespace)
     except client.ApiException as exc:
         logger.warning("Could not fully enrich pod context for %s/%s: status=%s — using partial context", namespace, pod_name, exc.status)
 
@@ -189,6 +192,35 @@ def _enrich_namespace(
         ctx.namespace_env = labels.get("environment", labels.get("env", ""))
     except client.ApiException:
         pass
+
+
+def _enrich_owner(
+    ctx: PodContext,
+    apps_v1: client.AppsV1Api,
+    pod: client.V1Pod,
+    namespace: str,
+) -> None:
+    owners = (pod.metadata.owner_references or []) if pod.metadata else []
+    for owner in owners:
+        if owner.kind == "ReplicaSet":
+            try:
+                rs = apps_v1.read_namespaced_replica_set(name=owner.name, namespace=namespace)
+                rs_owners = (rs.metadata.owner_references or []) if rs.metadata else []
+                for rs_owner in rs_owners:
+                    if rs_owner.kind == "Deployment":
+                        ctx.owner_kind = "Deployment"
+                        ctx.owner_name = rs_owner.name
+                        return
+            except client.ApiException:
+                pass
+            ctx.owner_kind = "ReplicaSet"
+            ctx.owner_name = owner.name
+            return
+        elif owner.kind in ("StatefulSet", "DaemonSet"):
+            ctx.owner_kind = owner.kind
+            ctx.owner_name = owner.name
+            return
+    logger.debug("Pod %s/%s has no recognised workload owner", namespace, ctx.pod_name)
 
 
 def score(ctx: PodContext, alert_rule: str = "") -> TriageResult:
