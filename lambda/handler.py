@@ -120,24 +120,70 @@ def _policy_name(pod_name: str) -> str:
     return name[:63].rstrip("-")
 
 
-def _build_quarantine_policy(pod_name: str, namespace: str) -> client.V1NetworkPolicy:
+def _workload_policy_name(owner_name: str) -> str:
+    name = f"quarantine-workload-{owner_name}"
+    return name[:63].rstrip("-")
+
+
+def _build_quarantine_policy(name: str, namespace: str, match_labels: dict) -> client.V1NetworkPolicy:
     return client.V1NetworkPolicy(
         api_version="networking.k8s.io/v1",
         kind="NetworkPolicy",
         metadata=client.V1ObjectMeta(
-            name=_policy_name(pod_name),
+            name=name,
             namespace=namespace,
             labels={"quarantine": "true", "managed-by": "k8s-threat-locator"},
         ),
         spec=client.V1NetworkPolicySpec(
             pod_selector=client.V1LabelSelector(
-                match_labels={"quarantine": "true"}
+                match_labels=match_labels,
             ),
             policy_types=["Ingress", "Egress"],
             ingress=[],
             egress=[],
         ),
     )
+
+
+def _quarantine_workload(
+    apps_v1: client.AppsV1Api,
+    networking_v1: client.NetworkingV1Api,
+    owner_kind: str,
+    owner_name: str,
+    namespace: str,
+    rule: str,
+) -> None:
+    try:
+        if owner_kind == "Deployment":
+            obj = apps_v1.read_namespaced_deployment(name=owner_name, namespace=namespace)
+        elif owner_kind == "StatefulSet":
+            obj = apps_v1.read_namespaced_stateful_set(name=owner_name, namespace=namespace)
+        elif owner_kind == "DaemonSet":
+            obj = apps_v1.read_namespaced_daemon_set(name=owner_name, namespace=namespace)
+        elif owner_kind == "ReplicaSet":
+            obj = apps_v1.read_namespaced_replica_set(name=owner_name, namespace=namespace)
+        else:
+            logger.warning("Unknown owner kind %s — cannot quarantine workload", owner_kind)
+            return
+    except client.ApiException as exc:
+        logger.error("Could not fetch %s %s/%s for workload quarantine: status=%s", owner_kind, namespace, owner_name, exc.status)
+        return
+
+    match_labels = (obj.spec.selector.match_labels or {}) if obj.spec and obj.spec.selector else {}
+    if not match_labels:
+        logger.warning("%s %s/%s has no pod selector — skipping workload quarantine", owner_kind, namespace, owner_name)
+        return
+
+    policy = _build_quarantine_policy(_workload_policy_name(owner_name), namespace, match_labels)
+    try:
+        networking_v1.create_namespaced_network_policy(namespace=namespace, body=policy)
+        logger.info("Workload quarantine NetworkPolicy applied for %s %s/%s rule=%s", owner_kind, namespace, owner_name, rule)
+        _emit_quarantine_metric(owner_name, namespace, rule=rule)
+    except client.ApiException as exc:
+        if exc.status == 409:
+            logger.info("Workload quarantine policy already exists for %s %s/%s — skipping", owner_kind, namespace, owner_name)
+        else:
+            raise
 
 
 def _download_kubeconfig() -> None:
