@@ -208,18 +208,31 @@ def _download_kubeconfig() -> None:
 def _quarantine_pod(
     core_v1: client.CoreV1Api,
     networking_v1: client.NetworkingV1Api,
+    apps_v1: client.AppsV1Api,
     pod_name: str,
     namespace: str,
     rule: str,
+    ctx_owner_kind: str = "",
+    ctx_owner_name: str = "",
 ) -> None:
-    core_v1.patch_namespaced_pod(
-        name=pod_name,
-        namespace=namespace,
-        body={"metadata": {"labels": {"quarantine": "true"}}},
-    )
-    logger.info("Labelled pod %s/%s with quarantine=true", namespace, pod_name)
+    try:
+        core_v1.patch_namespaced_pod(
+            name=pod_name,
+            namespace=namespace,
+            body={"metadata": {"labels": {"quarantine": "true"}}},
+        )
+        logger.info("Labelled pod %s/%s with quarantine=true", namespace, pod_name)
+    except client.ApiException as exc:
+        if exc.status == 404:
+            logger.warning("Pod %s/%s no longer exists — attempting workload quarantine instead", namespace, pod_name)
+            if ctx_owner_kind and ctx_owner_name:
+                _quarantine_workload(apps_v1, networking_v1, ctx_owner_kind, ctx_owner_name, namespace, rule)
+            else:
+                logger.error("Pod %s/%s is gone and no owner info available — quarantine skipped", namespace, pod_name)
+            return
+        raise
 
-    policy = _build_quarantine_policy(pod_name, namespace)
+    policy = _build_quarantine_policy(_policy_name(pod_name), namespace, {"quarantine": "true"})
     try:
         networking_v1.create_namespaced_network_policy(namespace=namespace, body=policy)
         logger.info("Quarantine NetworkPolicy applied for pod %s/%s", namespace, pod_name)
@@ -275,7 +288,10 @@ def handler(event, context):
             _emit_triage_metric(pod_name, namespace, result.severity)
 
             if result.action == Action.QUARANTINE:
-                _quarantine_pod(core_v1, networking_v1, pod_name, namespace, rule)
+                _quarantine_pod(
+                    core_v1, networking_v1, apps_v1, pod_name, namespace, rule,
+                    ctx_owner_kind=ctx.owner_kind, ctx_owner_name=ctx.owner_name,
+                )
             elif result.action == Action.ANNOTATE:
                 core_v1.patch_namespaced_pod(
                     name=pod_name,
