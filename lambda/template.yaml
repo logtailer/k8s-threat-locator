@@ -99,6 +99,7 @@ Resources:
           KUBECONFIG_BUCKET: !Ref KubeconfigBucket
           KUBECONFIG_KEY: !Ref KubeconfigKey
           METRIC_NAMESPACE: k8s-threat-locator
+          OPS_ALERTS_TOPIC_ARN: !Ref OpsAlertsTopic
       Events:
         FalcoAlert:
           Type: SNS
