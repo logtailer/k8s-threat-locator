@@ -84,6 +84,12 @@ resource "aws_iam_role_policy_attachment" "node_cni_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
 }
 
+# Required so nodes can pull EKS-managed images (vpc-cni, kube-proxy) from 602401143452.dkr.ecr.*
+# Our narrow node_ecr_read policy only covers our own repo and is not sufficient for system images.
+resource "aws_iam_role_policy_attachment" "node_ecr_readonly" {
+  role       = aws_iam_role.node_group.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+}
 
 resource "aws_iam_policy" "node_ecr_read" {
   name        = "${var.cluster_name}-node-ecr-read"
