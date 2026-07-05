@@ -158,6 +158,13 @@ Resources:
               - Effect: Allow
                 Action: sqs:SendMessage
                 Resource: !GetAtt QuarantineDLQ.Arn
+        - PolicyName: SnsPublishOpsAlerts
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: sns:Publish
+                Resource: !Ref OpsAlertsTopic
 
   QuarantineAlarm:
     Type: AWS::CloudWatch::Alarm
