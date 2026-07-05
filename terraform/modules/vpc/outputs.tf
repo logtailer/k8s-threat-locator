@@ -33,6 +33,11 @@ output "sts_endpoint_id" {
   value       = aws_vpc_endpoint.sts.id
 }
 
+output "vpc_endpoints_sg_id" {
+  description = "ID of the security group attached to interface VPC endpoints"
+  value       = aws_security_group.vpc_endpoints.id
+}
+
 output "ecr_api_endpoint_id" {
   description = "ID of the ECR API Interface VPC endpoint"
   value       = aws_vpc_endpoint.ecr_api.id
