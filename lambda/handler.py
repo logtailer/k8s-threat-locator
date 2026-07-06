@@ -317,6 +317,7 @@ def handler(event, context):
                     body={"metadata": {"annotations": {"triage-severity": result.severity, "triage-reason": result.reason}}},
                 )
                 logger.info("Annotated pod %s/%s severity=%s reason=%s", namespace, pod_name, result.severity, result.reason)
+                _notify_ops(pod_name, namespace, result.severity, result.reason)
             else:
                 logger.info("Alert-only for pod %s/%s score=%d reason=%s", namespace, pod_name, result.score, result.reason)
         except Exception:
