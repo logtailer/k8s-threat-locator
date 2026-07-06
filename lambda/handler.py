@@ -22,9 +22,27 @@ KUBECONFIG_BUCKET = os.environ.get("KUBECONFIG_BUCKET", "")
 KUBECONFIG_KEY = os.environ.get("KUBECONFIG_KEY", "kubeconfig")
 KUBECONFIG_PATH = "/tmp/kubeconfig"
 AWS_REGION = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+OPS_ALERTS_TOPIC_ARN = os.environ.get("OPS_ALERTS_TOPIC_ARN", "")
 
 if not KUBECONFIG_BUCKET:
     logger.warning("KUBECONFIG_BUCKET is not set — S3 download will fail at runtime")
+
+
+def _notify_ops(pod_name: str, namespace: str, severity: str, reason: str) -> None:
+    if not OPS_ALERTS_TOPIC_ARN:
+        logger.debug("OPS_ALERTS_TOPIC_ARN not set — skipping ops notification")
+        return
+    sns = boto3.client("sns", region_name=AWS_REGION)
+    message = (
+        f"k8s-threat-locator: pod {namespace}/{pod_name} flagged at severity={severity}\n"
+        f"reason: {reason}"
+    )
+    sns.publish(
+        TopicArn=OPS_ALERTS_TOPIC_ARN,
+        Subject=f"[k8s-threat-locator] {severity.upper()} — {namespace}/{pod_name}",
+        Message=message,
+    )
+    logger.info("Ops notification sent for pod %s/%s severity=%s", namespace, pod_name, severity)
 
 
 def _emit_triage_metric(pod_name: str, namespace: str, severity: str) -> None:
