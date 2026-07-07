@@ -3,8 +3,10 @@
 #          helm install falco falcosecurity/falco -n falco --create-namespace -f falco/values.yaml
 
 driver:
-  # module: kernel module (default). Alternative: ebpf (more compatible with newer kernels).
-  kind: module
+  # modern_ebpf: built into the Falco binary, no init container, requires kernel 5.8+.
+  # EKS AL2023 nodes run kernel 6.x, so this is the right choice for managed node groups.
+  # kernel module cannot be loaded on EKS managed nodes (no privileged bootstrap access).
+  kind: modern_ebpf
 
 falco:
   json_output: true
@@ -15,8 +17,6 @@ falco:
   priority: debug
   output_timeout: 2000
   buffered_outputs: false
-  grpc:
-    enabled: false
 
 falcosidekick:
   enabled: true
@@ -69,3 +69,60 @@ resources:
   limits:
     cpu: "200m"
     memory: "256Mi"
+
+customRules:
+  custom-rules.yaml: |-
+    - macro: items_api_container
+      condition: container.name = "items-api"
+
+    - rule: shell_in_container
+      desc: Detect a shell binary being spawned inside a running container
+      condition: >
+        spawned_process
+        and container
+        and items_api_container
+        and proc.name in (shell_binaries)
+      enabled: true
+      output: >
+        Shell spawned in container
+        (user=%user.name user_uid=%user.uid container_id=%container.id container_name=%container.name
+        pod=%k8s.pod.name ns=%k8s.ns.name image=%container.image.repository
+        image_tag=%container.image.tag pod_uid=%k8s.pod.uid parent=%proc.pname cmd=%proc.cmdline)
+      priority: ERROR
+      exceptions: []
+      tags: [shell, container, mitre_execution]
+
+    - rule: write_to_etc
+      desc: Detect any file write attempt under /etc/ inside a container
+      enabled: true
+      condition: >
+        open_write
+        and container
+        and fd.name startswith /etc/
+        and not proc.name in (package_mgmt_binaries)
+      output: >
+        Write to /etc detected in container
+        (user=%user.name file=%fd.name container_id=%container.id
+        container_name=%container.name pod=%k8s.pod.name ns=%k8s.ns.name
+        image=%container.image.repository pod_uid=%k8s.pod.uid)
+      priority: ERROR
+      exceptions: []
+      tags: [filesystem, container, mitre_persistence]
+
+    - rule: unexpected_outbound_connection
+      desc: Detect outbound network connections on unexpected ports from items-api
+      enabled: true
+      condition: >
+        outbound
+        and items_api_container
+        and not fd.sport in (443, 53, 5000, 80)
+        and fd.rport > 0
+        and not fd.rip in (169.254.169.254)
+      output: >
+        Unexpected outbound connection from items-api
+        (user=%user.name proc=%proc.name cmd=%proc.cmdline dest_ip=%fd.rip dest_port=%fd.rport
+        container_id=%container.id pod=%k8s.pod.name ns=%k8s.ns.name
+        image=%container.image.repository pod_uid=%k8s.pod.uid)
+      priority: WARNING
+      exceptions: []
+      tags: [network, container, mitre_exfiltration]
