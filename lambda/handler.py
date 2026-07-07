@@ -28,13 +28,22 @@ if not KUBECONFIG_BUCKET:
     logger.warning("KUBECONFIG_BUCKET is not set — S3 download will fail at runtime")
 
 
-def _notify_ops(pod_name: str, namespace: str, severity: str, reason: str) -> None:
+def _notify_ops(
+    pod_name: str,
+    namespace: str,
+    severity: str,
+    reason: str,
+    rule: str = "",
+    priority: str = "",
+    score: int = 0,
+) -> None:
     if not OPS_ALERTS_TOPIC_ARN:
         logger.debug("OPS_ALERTS_TOPIC_ARN not set — skipping ops notification")
         return
     sns = boto3.client("sns", region_name=AWS_REGION)
     message = (
         f"k8s-threat-locator: pod {namespace}/{pod_name} flagged at severity={severity}\n"
+        f"rule: {rule or 'unknown'}  priority: {priority or 'unknown'}  score: {score}\n"
         f"reason: {reason}"
     )
     sns.publish(
@@ -317,7 +326,8 @@ def handler(event, context):
                     body={"metadata": {"annotations": {"triage-severity": result.severity, "triage-reason": result.reason}}},
                 )
                 logger.info("Annotated pod %s/%s severity=%s reason=%s", namespace, pod_name, result.severity, result.reason)
-                _notify_ops(pod_name, namespace, result.severity, result.reason)
+                _notify_ops(pod_name, namespace, result.severity, result.reason,
+                            rule=rule, priority=priority, score=result.score)
             else:
                 logger.info("Alert-only for pod %s/%s score=%d reason=%s", namespace, pod_name, result.score, result.reason)
         except Exception:
