@@ -126,6 +126,13 @@ Resources:
                 Action: cloudwatch:PutMetricData
                 # PutMetricData does not support resource-level permissions
                 Resource: "*"
+        - PolicyName: DLQSendMessage
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: sqs:SendMessage
+                Resource: !GetAtt QuarantineDLQ.Arn
 
   QuarantineAlarm:
     Type: AWS::CloudWatch::Alarm
