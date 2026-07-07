@@ -77,7 +77,6 @@ Resources:
         Variables:
           KUBECONFIG_BUCKET: !Ref KubeconfigBucket
           KUBECONFIG_KEY: !Ref KubeconfigKey
-          AWS_DEFAULT_REGION: !Ref AWS::Region
           METRIC_NAMESPACE: k8s-threat-locator
       Events:
         FalcoAlert:
