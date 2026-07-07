@@ -4,6 +4,9 @@ boto3
 # Kubernetes Python client — used to apply quarantine NetworkPolicy
 kubernetes==30.1.0
 
+# YAML parsing for kubeconfig (exec-plugin-free EKS token generation)
+pyyaml
+
 # boto3 stubs for local type checking (not installed in Lambda)
 # boto3-stubs[cloudwatch,s3]
 
