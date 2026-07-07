@@ -142,14 +142,6 @@ resource "aws_eks_addon" "kube_proxy" {
   tags                        = local.tags
 }
 
-resource "aws_eks_addon" "ebs_csi_driver" {
-  cluster_name                = aws_eks_cluster.this.name
-  addon_name                  = "aws-ebs-csi-driver"
-  resolve_conflicts_on_create = "OVERWRITE"
-  resolve_conflicts_on_update = "OVERWRITE"
-  tags                        = local.tags
-  depends_on                  = [aws_eks_node_group.this]
-}
 
 # The OIDC thumbprint is fetched from the issuer URL at plan time.
 # EKS rotates the OIDC endpoint certificate periodically — re-apply after rotation.
