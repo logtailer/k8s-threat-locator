@@ -24,13 +24,13 @@ falcosidekick:
   config:
     aws:
       sns:
-        # Replace with your SNS topic ARN after deploying the Lambda stack
-        topicarn: ""
+        topicarn: "arn:aws:sns:us-east-1:261599401243:falco-alerts"
         minimumpriority: "error"
       region: "us-east-1"
+      # checkidentity skips the startup STS:GetCallerIdentity probe — actual publishes use IRSA creds
+      checkidentity: false
     metrics:
       enabled: true
-      # roleName: "" # optional: IAM role for falcosidekick to assume when calling SNS
     debug: false
     nooutput: false
 
