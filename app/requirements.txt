@@ -7,6 +7,9 @@ Werkzeug==0.14.1
 # CVE-2019-10906 — sandbox escape via _fail_with_undefined_error
 Jinja2==2.10
 
+# Pin MarkupSafe to last version compatible with Jinja2==2.10 (3.x removed soft_unicode)
+MarkupSafe==1.1.1
+
 # Insecure serialisation, no longer maintained
 itsdangerous==0.24
 
