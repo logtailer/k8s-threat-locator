@@ -1,11 +1,17 @@
+import base64
 import json
 import logging
 import os
+import re
+import tempfile
 
 import boto3
+from botocore.auth import SigV4QueryAuth
+from botocore.awsrequest import AWSRequest
 from botocore.config import Config as BotocoreConfig
 from botocore.exceptions import ClientError
-from kubernetes import client, config
+import yaml
+from kubernetes import client
 
 from triage import Action, enrich, score
 
@@ -58,11 +64,48 @@ def _emit_quarantine_metric(pod_name: str, namespace: str, rule: str = "") -> No
     logger.info("Emitted QuarantineApplied metric for pod %s/%s rule=%s", namespace, pod_name, rule)
 
 
+def _generate_eks_token(cluster_name: str, region: str) -> str:
+    """Generate a bearer token for EKS equivalent to `aws eks get-token`."""
+    session = boto3.session.Session()
+    creds = session.get_credentials().get_frozen_credentials()
+    signer = SigV4QueryAuth(creds, "sts", region, expires=60)
+    url = f"https://sts.{region}.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15"
+    request = AWSRequest(method="GET", url=url, headers={"x-k8s-aws-id": cluster_name})
+    signer.add_auth(request)
+    presigned = request.url
+    token = "k8s-aws-v1." + re.sub(r"=+$", "", base64.urlsafe_b64encode(presigned.encode()).decode())
+    return token
+
+
 def _get_k8s_clients() -> tuple:
-    config.load_kube_config(config_file=KUBECONFIG_PATH)
-    k8s_client = client.ApiClient(
-        configuration=client.Configuration(connection_pool_maxsize=4)
-    )
+    with open(KUBECONFIG_PATH) as f:
+        kube_cfg = yaml.safe_load(f)
+
+    cluster_info = kube_cfg["clusters"][0]["cluster"]
+    server = cluster_info["server"]
+    ca_b64 = cluster_info["certificate-authority-data"]
+
+    # Derive cluster name and region from context ARN
+    context_name = kube_cfg.get("current-context", "")
+    # ARN format: arn:aws:eks:<region>:<account>:cluster/<name>
+    parts = context_name.split(":")
+    cluster_name = parts[-1].split("/")[-1] if "/" in parts[-1] else "k8s-threat-locator"
+    region = parts[3] if len(parts) > 3 else AWS_REGION
+
+    token = _generate_eks_token(cluster_name, region)
+
+    ca_cert_path = tempfile.mktemp(suffix=".crt")
+    with open(ca_cert_path, "wb") as f:
+        f.write(base64.b64decode(ca_b64))
+
+    k8s_config = client.Configuration()
+    k8s_config.host = server
+    k8s_config.ssl_ca_cert = ca_cert_path
+    k8s_config.verify_ssl = True
+    k8s_config.api_key = {"authorization": token}
+    k8s_config.api_key_prefix = {"authorization": "Bearer"}
+
+    k8s_client = client.ApiClient(configuration=k8s_config)
     return (
         client.CoreV1Api(k8s_client),
         client.NetworkingV1Api(k8s_client),
