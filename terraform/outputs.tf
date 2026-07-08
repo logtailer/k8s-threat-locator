@@ -63,3 +63,8 @@ output "cluster_certificate_authority_data" {
   value       = module.eks.cluster_certificate_authority_data
   sensitive   = true
 }
+
+output "falcosidekick_role_arn" {
+  description = "IRSA role ARN for Falcosidekick — set eks.amazonaws.com/role-arn on the falcosidekick ServiceAccount and pass as FalcosidekickRoleArn to sam deploy"
+  value       = aws_iam_role.falcosidekick.arn
+}

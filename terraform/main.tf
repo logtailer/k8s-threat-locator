@@ -5,7 +5,12 @@ locals {
     ManagedBy   = "terraform"
     CreatedAt   = timestamp()
   }
+
+  sns_topic_arn     = "arn:aws:sns:${var.aws_region}:${data.aws_caller_identity.current.account_id}:falco-alerts"
+  oidc_issuer_plain = replace(module.eks.cluster_oidc_issuer_url, "https://", "")
 }
+
+data "aws_caller_identity" "current" {}
 
 module "vpc" {
   source = "./modules/vpc"
@@ -49,4 +54,48 @@ module "irsa" {
   s3_bucket_arn           = "arn:aws:s3:::${var.app_s3_bucket_name}"
   environment             = var.environment
   project                 = var.project
+}
+
+resource "aws_iam_role" "falcosidekick" {
+  name = "${var.cluster_name}-falcosidekick"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Federated = module.eks.oidc_provider_arn
+        }
+        Action = "sts:AssumeRoleWithWebIdentity"
+        Condition = {
+          StringEquals = {
+            "${local.oidc_issuer_plain}:aud" = "sts.amazonaws.com"
+            "${local.oidc_issuer_plain}:sub" = "system:serviceaccount:falco:falcosidekick"
+          }
+        }
+      }
+    ]
+  })
+
+  tags = merge(local.common_tags, {
+    Name = "${var.cluster_name}-falcosidekick"
+  })
+}
+
+resource "aws_iam_role_policy" "falcosidekick_sns" {
+  name = "sns-publish-falco-alerts"
+  role = aws_iam_role.falcosidekick.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "AllowPublishToFalcoAlertsTopic"
+        Effect   = "Allow"
+        Action   = "sns:Publish"
+        Resource = local.sns_topic_arn
+      }
+    ]
+  })
 }

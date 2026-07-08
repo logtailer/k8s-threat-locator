@@ -26,6 +26,10 @@ Parameters:
     Default: kubeconfig
     Description: S3 object key for the kubeconfig file
 
+  FalcosidekickRoleArn:
+    Type: String
+    Description: IAM role ARN used by Falcosidekick to publish alerts (IRSA role or dedicated role). Only this principal may publish to the SNS topic.
+
 Resources:
   FalcoAlertsTopic:
     Type: AWS::SNS::Topic
@@ -48,7 +52,7 @@ Resources:
           - Sid: AllowFalcosidekickPublish
             Effect: Allow
             Principal:
-              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+              AWS: !Ref FalcosidekickRoleArn
             Action: sns:Publish
             Resource: !Ref FalcoAlertsTopic
 

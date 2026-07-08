@@ -21,14 +21,16 @@ falco:
 falcosidekick:
   enabled: true
   replicaCount: 2
+  serviceAccount:
+    annotations:
+      # Set to output of: terraform -chdir=terraform output -raw falcosidekick_role_arn
+      eks.amazonaws.com/role-arn: "<FALCOSIDEKICK_IRSA_ROLE_ARN>"
   config:
     aws:
       sns:
         topicarn: "arn:aws:sns:us-east-1:261599401243:falco-alerts"
         minimumpriority: "error"
       region: "us-east-1"
-      # checkidentity skips the startup STS:GetCallerIdentity probe — actual publishes use IRSA creds
-      checkidentity: false
     metrics:
       enabled: true
     debug: false
