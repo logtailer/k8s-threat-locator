@@ -55,6 +55,14 @@ class TriageResult:
 _DANGEROUS_CAPS = frozenset({"CAP_SYS_ADMIN", "CAP_NET_ADMIN", "CAP_SYS_PTRACE", "CAP_SYS_MODULE"})
 _SYSTEM_NAMESPACES = {"kube-system", "kube-public", "falco", "calico-system"}
 
+# Falco rules that indicate active compromise — always quarantine regardless of pod risk score.
+_FORCE_QUARANTINE_RULES = frozenset({
+    "shell_in_container",
+    "write_to_etc",
+    "Terminal shell in container",
+    "Write below etc",
+})
+
 
 def enrich(
     core_v1: client.CoreV1Api,
@@ -168,6 +176,19 @@ def _enrich_namespace(
 
 
 def score(ctx: PodContext, alert_rule: str = "") -> TriageResult:
+    if alert_rule in _FORCE_QUARANTINE_RULES:
+        logger.info(
+            "Triage: pod=%s/%s rule=%s forced quarantine (active-compromise rule)",
+            ctx.namespace, ctx.pod_name, alert_rule,
+        )
+        return TriageResult(
+            score=100,
+            severity="critical",
+            action=Action.QUARANTINE,
+            reason=f"active-compromise rule triggered: {alert_rule}",
+            context=ctx,
+        )
+
     points = 0
     reasons = []
 
