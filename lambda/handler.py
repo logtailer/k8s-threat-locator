@@ -94,9 +94,9 @@ def _get_k8s_clients() -> tuple:
 
     token = _generate_eks_token(cluster_name, region)
 
-    ca_cert_path = tempfile.mktemp(suffix=".crt")
-    with open(ca_cert_path, "wb") as f:
-        f.write(base64.b64decode(ca_b64))
+    with tempfile.NamedTemporaryFile(suffix=".crt", delete=False) as ca_file:
+        ca_file.write(base64.b64decode(ca_b64))
+        ca_cert_path = ca_file.name
 
     k8s_config = client.Configuration()
     k8s_config.host = server
@@ -110,6 +110,7 @@ def _get_k8s_clients() -> tuple:
         client.CoreV1Api(k8s_client),
         client.NetworkingV1Api(k8s_client),
         client.RbacAuthorizationV1Api(k8s_client),
+        ca_cert_path,
     )
 
 
@@ -216,9 +217,10 @@ def handler(event, context):
         logger.info("Falco alert: rule=%s priority=%s pod=%s ns=%s time=%s",
                     rule, priority, pod_name, namespace, alert.get("time"))
 
+        ca_cert_path = None
         try:
             _download_kubeconfig()
-            core_v1, networking_v1, rbac_v1 = _get_k8s_clients()
+            core_v1, networking_v1, rbac_v1, ca_cert_path = _get_k8s_clients()
             logger.info("Kubernetes clients initialised for pod %s/%s", namespace, pod_name)
 
             ctx = enrich(core_v1, rbac_v1, pod_name, namespace)
@@ -243,5 +245,7 @@ def handler(event, context):
             if os.path.exists(KUBECONFIG_PATH):
                 os.remove(KUBECONFIG_PATH)
                 logger.info("Cleaned up kubeconfig from %s", KUBECONFIG_PATH)
+            if ca_cert_path and os.path.exists(ca_cert_path):
+                os.remove(ca_cert_path)
 
     return {"statusCode": 200, "body": "ok"}
