@@ -55,6 +55,14 @@ Resources:
               AWS: !Ref FalcosidekickRoleArn
             Action: sns:Publish
             Resource: !Ref FalcoAlertsTopic
+          - Sid: DenyPublishFromOtherPrincipals
+            Effect: Deny
+            Principal: "*"
+            Action: sns:Publish
+            Resource: !Ref FalcoAlertsTopic
+            Condition:
+              ArnNotEquals:
+                aws:PrincipalArn: !Ref FalcosidekickRoleArn
 
   QuarantineDLQ:
     Type: AWS::SQS::Queue
@@ -90,6 +98,9 @@ Resources:
               priority:
                 - ERROR
                 - CRITICAL
+                - Error
+                - Critical
+            FilterPolicyScope: MessageBody
 
   IncidentResponderRole:
     Type: AWS::IAM::Role
