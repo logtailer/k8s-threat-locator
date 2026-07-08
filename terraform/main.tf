@@ -71,7 +71,7 @@ resource "aws_iam_role" "falcosidekick" {
         Condition = {
           StringEquals = {
             "${local.oidc_issuer_plain}:aud" = "sts.amazonaws.com"
-            "${local.oidc_issuer_plain}:sub" = "system:serviceaccount:falco:falcosidekick"
+            "${local.oidc_issuer_plain}:sub" = "system:serviceaccount:falco:falco-falcosidekick"
           }
         }
       }

@@ -21,15 +21,19 @@ falco:
 falcosidekick:
   enabled: true
   replicaCount: 2
-  serviceAccount:
-    annotations:
-      # Set to output of: terraform -chdir=terraform output -raw falcosidekick_role_arn
-      eks.amazonaws.com/role-arn: "<FALCOSIDEKICK_IRSA_ROLE_ARN>"
+  image:
+    tag: "2.31.1"
   config:
     aws:
+      # useirsa=true makes the chart annotate the falcosidekick ServiceAccount with rolearn
+      # so the pod picks up IRSA credentials instead of static keys
+      useirsa: true
+      rolearn: "arn:aws:iam::261599401243:role/k8s-threat-locator-falcosidekick"
+      checkidentity: false
       sns:
         topicarn: "arn:aws:sns:us-east-1:261599401243:falco-alerts"
         minimumpriority: "error"
+        rawjson: true
       region: "us-east-1"
     metrics:
       enabled: true
