@@ -34,50 +34,42 @@ Without context, you quarantine all three the same way. With context, you quaran
 
 ## How the Pipeline Works
 
-```
-Developer → GitHub Actions → Trivy CVE gate → ECR → EKS
-                                                       │
-                                              ┌────────┴────────┐
-                                              │   threat-demo   │
-                                              │   namespace     │
-                                              │                 │
-                                              │  Calico         │
-                                              │  default-deny   │
-                                              │       +         │
-                                              │  items-api pod  │
-                                              │  (runs as root) │
-                                              └────────┬────────┘
-                                                       │ syscall event
-                                                       ▼
-                                              Falco DaemonSet
-                                              (kernel-level)
-                                                       │ ERROR alert
-                                                       ▼
-                                              Falcosidekick → SNS
-                                                       │
-                                                       ▼
-                                              Lambda: _parse_alert()
-                                                       │
-                                                       ▼
-                                              triage.enrich()
-                                              ┌─────────────────────┐
-                                              │ • pod spec flags     │
-                                              │ • service type       │
-                                              │ • RBAC bindings      │
-                                              │ • namespace env      │
-                                              └─────────┬───────────┘
-                                                        │
-                                                        ▼
-                                              triage.score() → 0–100
-                                                        │
-                                          ┌─────────────┼─────────────┐
-                                          ▼             ▼             ▼
-                                       score<20      20≤score<70   score≥70
-                                       alert_only    annotate      quarantine
-                                                         │             │
-                                                    patch pod     NetworkPolicy
-                                                    annotation    + label pod
-                                                                  + CW metric
+```mermaid
+flowchart TD
+    DEV[Developer] -->|git push| GH[GitHub Actions]
+    GH --> TV{Trivy CVE gate}
+    TV -->|CRITICAL CVEs| FAIL[Pipeline blocked\nFlask==1.0.0 unfixed]
+    TV -->|clean image| ECR[ECR Registry]
+    ECR -->|deploy| EKS
+
+    subgraph EKS["EKS — threat-demo namespace"]
+        direction TB
+        APP[items-api pod\nruns as root]
+        FALCO[Falco DaemonSet\nmodern_ebpf]
+        APP -->|shell exec / write /etc| FALCO
+    end
+
+    FALCO -->|ERROR alert JSON| FSK[Falcosidekick]
+    FSK -->|priority=ERROR attribute| SNS[SNS falco-alerts\nFilterPolicy: ERROR + CRITICAL only]
+    SNS -->|invoke| LAMBDA
+
+    subgraph LAMBDA["Lambda — k8s-threat-locator-responder"]
+        direction TB
+        PARSE[parse alert\nextract pod + namespace]
+        ENRICH[enrich\npod spec · services · RBAC · ns labels]
+        FORCE{force-quarantine\nrule?}
+        SCORE[score  0–100]
+        PARSE --> ENRICH --> FORCE
+        FORCE -->|shell_in_container\nwrite_to_etc| CRIT[severity=critical\nQUARANTINE]
+        FORCE -->|other rules| SCORE
+        SCORE -->|score >= 70| CRIT
+        SCORE -->|20-69| ANN[annotate pod]
+        SCORE -->|less than 20| AONLY[alert only]
+    end
+
+    CRIT -->|PATCH| LABEL[pod label\nquarantine=true]
+    CRIT -->|CREATE| NP[NetworkPolicy\ndeny-all ingress + egress]
+    CRIT -->|PutMetricData| CW[CloudWatch\nQuarantineApplied + TriageScore]
 ```
 
 ### Triage Scoring

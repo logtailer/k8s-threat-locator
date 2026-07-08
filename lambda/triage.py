@@ -1,10 +1,3 @@
-"""
-Runtime context enrichment and triage scoring for Falco alerts.
-
-Before quarantining a pod, the handler calls enrich() to gather context from
-the Kubernetes API, then score() maps that context to a TriageResult that
-determines the response action.
-"""
 from __future__ import annotations
 
 import logging
