@@ -10,23 +10,15 @@ spec:
   types:
     - Egress
   egress:
-    # Allow HTTPS to AWS STS and S3 endpoints (required for IRSA token exchange)
-    # 0.0.0.0/0 is intentional: AWS regional endpoints have dynamic IPs.
-    # A tighter posture would use a VPC endpoint and restrict to its prefix list.
-    - action: Allow
-      protocol: TCP
-      destination:
-        nets:
-          - "0.0.0.0/0"
-        ports:
-          - 443
     # Allow outbound on port 5000 for inter-pod health checks within the cluster
     - action: Allow
       protocol: TCP
       destination:
         ports:
           - 5000
-    # Allow outbound to kube-apiserver on 443 for downward API and readiness gates
+    # Allow HTTPS within the VPC only: covers kube-apiserver, and STS for IRSA token exchange.
+    # STS resolves to a private IP because the STS Interface VPC endpoint has private_dns_enabled=true.
+    # No internet-facing 0.0.0.0/0 rule: S3 and other AWS services are not required at runtime.
     - action: Allow
       protocol: TCP
       destination:
