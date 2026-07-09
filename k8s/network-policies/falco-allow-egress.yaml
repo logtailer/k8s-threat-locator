@@ -1,0 +1,76 @@
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-falco
+  namespace: falco
+spec:
+  order: 100
+  selector: app.kubernetes.io/name == "falco"
+  types:
+    - Egress
+  egress:
+    - action: Allow
+      protocol: UDP
+      destination:
+        ports:
+          - 53
+    - action: Allow
+      protocol: TCP
+      destination:
+        ports:
+          - 53
+    # kube-apiserver for k8s metadata enrichment — stays within VPC CIDR
+    - action: Allow
+      protocol: TCP
+      destination:
+        nets:
+          - "10.0.0.0/16"
+        ports:
+          - 443
+    # Falcosidekick webhook — Falco POSTs alerts here; pod IPs are in VPC CIDR (EKS VPC CNI)
+    - action: Allow
+      protocol: TCP
+      destination:
+        nets:
+          - "10.0.0.0/16"
+        ports:
+          - 2801
+---
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-falcosidekick
+  namespace: falco
+spec:
+  order: 100
+  selector: app.kubernetes.io/name == "falcosidekick"
+  types:
+    - Egress
+  egress:
+    - action: Allow
+      protocol: UDP
+      destination:
+        ports:
+          - 53
+    - action: Allow
+      protocol: TCP
+      destination:
+        ports:
+          - 53
+    # VPC-internal HTTPS: STS IRSA token exchange (Interface endpoint, private_dns_enabled=true)
+    - action: Allow
+      protocol: TCP
+      destination:
+        nets:
+          - "10.0.0.0/16"
+        ports:
+          - 443
+    # SNS publish — no VPC endpoint for SNS in this cluster; public endpoint required.
+    # Restricted to port 443 only; all other public egress remains blocked.
+    - action: Allow
+      protocol: TCP
+      destination:
+        nets:
+          - "0.0.0.0/0"
+        ports:
+          - 443

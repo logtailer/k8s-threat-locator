@@ -1,0 +1,11 @@
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-egress
+  namespace: falco
+spec:
+  order: 1000
+  selector: all()
+  types:
+    - Egress
+  egress: []
