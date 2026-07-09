@@ -92,14 +92,22 @@ def _enrich_pod_spec(ctx: PodContext, pod: client.V1Pod) -> None:
     ctx.has_host_pid = bool(spec.host_pid)
 
     pod_sc = spec.security_context or client.V1PodSecurityContext()
-    if pod_sc.run_as_user == 0 or pod_sc.run_as_non_root is False:
+    # Treat as root if explicitly uid=0, if runAsNonRoot is explicitly False,
+    # or if neither runAsUser nor runAsNonRoot is set (no enforcement = root risk).
+    pod_enforces_nonroot = pod_sc.run_as_non_root is True or (
+        pod_sc.run_as_user is not None and pod_sc.run_as_user != 0
+    )
+    if not pod_enforces_nonroot:
         ctx.runs_as_root = True
 
     for container in (spec.containers or []) + (spec.init_containers or []):
         sc = container.security_context or client.V1SecurityContext()
         if sc.privileged:
             ctx.has_privileged_container = True
-        if sc.run_as_user == 0:
+        # Container-level override: explicit non-root enforcement clears pod-level flag.
+        if sc.run_as_non_root is True or (sc.run_as_user is not None and sc.run_as_user != 0):
+            ctx.runs_as_root = False
+        elif sc.run_as_user == 0 or sc.run_as_non_root is False:
             ctx.runs_as_root = True
         caps = sc.capabilities
         if caps and caps.add:
@@ -240,6 +248,7 @@ def score(ctx: PodContext, alert_rule: str = "") -> TriageResult:
         reasons.append("production namespace")
     elif ctx.namespace_env in ("dev", "development", "demo"):
         points -= 10
+        reasons.append(f"non-production namespace ({ctx.namespace_env}) -10")
     elif ctx.namespace_env == "staging":
         points += 5
         reasons.append("staging namespace")
