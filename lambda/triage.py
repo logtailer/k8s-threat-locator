@@ -48,6 +48,13 @@ class TriageResult:
 _DANGEROUS_CAPS = frozenset({"CAP_SYS_ADMIN", "CAP_NET_ADMIN", "CAP_SYS_PTRACE", "CAP_SYS_MODULE"})
 _SYSTEM_NAMESPACES = {"kube-system", "kube-public", "falco", "calico-system"}
 
+# Quarantine is never applied to these namespaces — isolating infrastructure pods (coredns,
+# kube-proxy, falco) would cascade into cluster-wide outages worse than the alert itself.
+_QUARANTINE_BLOCKED_NAMESPACES = frozenset({
+    "kube-system", "kube-public", "kube-node-lease",
+    "falco", "calico-system", "calico-apiserver", "tigera-operator",
+})
+
 # Falco rules that indicate active compromise — always quarantine regardless of pod risk score.
 _FORCE_QUARANTINE_RULES = frozenset({
     "shell_in_container",
@@ -169,6 +176,19 @@ def _enrich_namespace(
 
 
 def score(ctx: PodContext, alert_rule: str = "") -> TriageResult:
+    if ctx.namespace in _QUARANTINE_BLOCKED_NAMESPACES:
+        logger.warning(
+            "Triage: pod=%s/%s rule=%s — namespace is protected, downgrading to alert-only",
+            ctx.namespace, ctx.pod_name, alert_rule,
+        )
+        return TriageResult(
+            score=0,
+            severity="low",
+            action=Action.ALERT_ONLY,
+            reason=f"namespace {ctx.namespace!r} is protected from automated quarantine",
+            context=ctx,
+        )
+
     if alert_rule in _FORCE_QUARANTINE_RULES:
         logger.info(
             "Triage: pod=%s/%s rule=%s forced quarantine (active-compromise rule)",
