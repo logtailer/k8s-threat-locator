@@ -14,15 +14,9 @@ spec:
     - action: Allow
       protocol: TCP
       source:
-        # Only pods with label role=frontend can reach the API on port 5000
-        selector: role == "frontend"
-      destination:
-        ports:
-          - 5000
-    - action: Allow
-      protocol: TCP
-      source:
-        # Allow intra-namespace traffic so items-api pods can health-check each other
+        # Allow intra-namespace traffic so items-api pods can health-check each other.
+        # No frontend-label selector: pod labels are self-assignable without an admission
+        # controller, making them unsuitable as a trust boundary.
         selector: app == "items-api"
       destination:
         ports:
