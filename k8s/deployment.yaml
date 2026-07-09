@@ -85,5 +85,5 @@ spec:
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: false
+            readOnlyRootFilesystem: true
             # runAsNonRoot: false — intentionally runs as root to trigger Falco detection
