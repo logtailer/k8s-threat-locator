@@ -79,6 +79,7 @@ Resources:
     Properties:
       QueueName: k8s-threat-locator-dlq
       MessageRetentionPeriod: 1209600  # 14 days
+      SqsManagedSseEnabled: true
 
   IncidentResponderFunction:
     Type: AWS::Serverless::Function
