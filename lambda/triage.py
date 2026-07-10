@@ -154,18 +154,23 @@ def _enrich_rbac(
                     if ref == "cluster-admin":
                         ctx.has_cluster_admin = True
 
-        cluster_bindings = rbac_v1.list_cluster_role_binding()
-        for crb in cluster_bindings.items:
-            for subject in (crb.subjects or []):
-                if (
-                    subject.name == ctx.service_account
-                    and subject.kind == "ServiceAccount"
-                    and subject.namespace == namespace
-                ):
-                    ref = crb.role_ref.name if crb.role_ref else ""
-                    ctx.cluster_role_names.append(ref)
-                    if ref == "cluster-admin":
-                        ctx.has_cluster_admin = True
+        cont = None
+        while True:
+            page = rbac_v1.list_cluster_role_binding(limit=200, _continue=cont)
+            for crb in page.items:
+                for subject in (crb.subjects or []):
+                    if (
+                        subject.name == ctx.service_account
+                        and subject.kind == "ServiceAccount"
+                        and subject.namespace == namespace
+                    ):
+                        ref = crb.role_ref.name if crb.role_ref else ""
+                        ctx.cluster_role_names.append(ref)
+                        if ref == "cluster-admin":
+                            ctx.has_cluster_admin = True
+            cont = page.metadata._continue
+            if not cont:
+                break
     except client.ApiException:
         logger.warning("RBAC lookup failed — skipping RBAC enrichment")
 
