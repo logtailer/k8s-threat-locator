@@ -68,7 +68,7 @@ def _generate_eks_token(cluster_name: str, region: str) -> str:
     """Generate a bearer token for EKS equivalent to `aws eks get-token`."""
     session = boto3.session.Session()
     creds = session.get_credentials().get_frozen_credentials()
-    signer = SigV4QueryAuth(creds, "sts", region, expires=60)
+    signer = SigV4QueryAuth(creds, "sts", region, expires=900)
     url = f"https://sts.{region}.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15"
     request = AWSRequest(method="GET", url=url, headers={"x-k8s-aws-id": cluster_name})
     signer.add_auth(request)
