@@ -64,6 +64,16 @@ Resources:
               ArnNotEquals:
                 aws:PrincipalArn: !Ref FalcosidekickRoleArn
 
+  OpsAlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: k8s-threat-locator-ops-alerts
+      Tags:
+        - Key: Project
+          Value: k8s-threat-locator
+        - Key: ManagedBy
+          Value: sam
+
   QuarantineDLQ:
     Type: AWS::SQS::Queue
     Properties:
@@ -161,6 +171,10 @@ Resources:
       Threshold: 5
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref OpsAlertsTopic
+      OKActions:
+        - !Ref OpsAlertsTopic
 
   DLQDepthAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -178,6 +192,10 @@ Resources:
       Threshold: 1
       ComparisonOperator: GreaterThanOrEqualToThreshold
       TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref OpsAlertsTopic
+      OKActions:
+        - !Ref OpsAlertsTopic
 
 Outputs:
   FunctionArn:
@@ -195,3 +213,6 @@ Outputs:
   SnsTopicArn:
     Description: ARN of the Falco alerts SNS topic — wire this into Falcosidekick config
     Value: !Ref FalcoAlertsTopic
+  OpsAlertsTopicArn:
+    Description: ARN of the ops alerts SNS topic — subscribe your email/PagerDuty endpoint here
+    Value: !Ref OpsAlertsTopic
