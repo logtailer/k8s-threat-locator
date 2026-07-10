@@ -19,12 +19,12 @@ spec:
       destination:
         ports:
           - 53
-    # kube-apiserver for k8s metadata enrichment — stays within VPC CIDR
+    # kube-apiserver (VPC-internal) and falcosecurity.github.io (rules artifact download on startup)
     - action: Allow
       protocol: TCP
       destination:
         nets:
-          - "10.0.0.0/16"
+          - "0.0.0.0/0"
         ports:
           - 443
     # Falcosidekick webhook — Falco POSTs alerts here; pod IPs are in VPC CIDR (EKS VPC CNI)
