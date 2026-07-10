@@ -121,7 +121,7 @@ customRules:
       condition: >
         outbound
         and items_api_container
-        and not fd.sport in (443, 53, 5000, 80)
+        and not fd.rport in (443, 53, 5000, 80)
         and fd.rport > 0
         and not fd.rip in (169.254.169.254)
       output: >
