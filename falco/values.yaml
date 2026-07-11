@@ -96,7 +96,7 @@ customRules:
         image_tag=%container.image.tag pod_uid=%k8s.pod.uid parent=%proc.pname cmd=%proc.cmdline)
       priority: ERROR
       exceptions: []
-      tags: [shell, container, mitre_execution]
+      tags: [shell, container, mitre_execution, force_quarantine]
 
     - rule: write_to_etc
       desc: Detect any file write attempt under /etc/ inside a container
@@ -113,7 +113,7 @@ customRules:
         image=%container.image.repository pod_uid=%k8s.pod.uid)
       priority: ERROR
       exceptions: []
-      tags: [filesystem, container, mitre_persistence]
+      tags: [filesystem, container, mitre_persistence, force_quarantine]
 
     - rule: unexpected_outbound_connection
       desc: Detect outbound network connections on unexpected ports from items-api
