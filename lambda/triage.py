@@ -223,7 +223,7 @@ def _enrich_owner(
     logger.debug("Pod %s/%s has no recognised workload owner", namespace, ctx.pod_name)
 
 
-def score(ctx: PodContext, alert_rule: str = "") -> TriageResult:
+def score(ctx: PodContext, alert_rule: str = "", alert_tags: list[str] | None = None) -> TriageResult:
     if ctx.namespace in _QUARANTINE_BLOCKED_NAMESPACES:
         logger.warning(
             "Triage: pod=%s/%s rule=%s — namespace is protected, downgrading to alert-only",
@@ -237,7 +237,13 @@ def score(ctx: PodContext, alert_rule: str = "") -> TriageResult:
             context=ctx,
         )
 
-    if alert_rule in _FORCE_QUARANTINE_RULES:
+    # Tag-based check is the preferred path; rule name fallback covers older Falco deployments
+    # that predate the force_quarantine tag being added to rules.
+    force_quarantine = (
+        (alert_tags is not None and "force_quarantine" in alert_tags)
+        or alert_rule in _FORCE_QUARANTINE_RULES
+    )
+    if force_quarantine:
         logger.info(
             "Triage: pod=%s/%s rule=%s forced quarantine (active-compromise rule)",
             ctx.namespace, ctx.pod_name, alert_rule,
