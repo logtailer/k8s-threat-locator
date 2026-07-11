@@ -58,7 +58,10 @@ _QUARANTINE_BLOCKED_NAMESPACES = frozenset({
     "falco", "calico-system", "calico-apiserver", "tigera-operator",
 })
 
-# Falco rules that indicate active compromise — always quarantine regardless of pod risk score.
+# Fallback for Falco deployments that do not yet carry the force_quarantine tag on their rules.
+# Preferred path: Falco rule carries tags: [..., force_quarantine] and alert_tags is checked in score().
+# This frozenset must be kept in sync with any Falco rule that should trigger immediate quarantine
+# but cannot be redeployed to add the tag (e.g. built-in upstream rules used without modification).
 _FORCE_QUARANTINE_RULES = frozenset({
     "shell_in_container",
     "write_to_etc",
