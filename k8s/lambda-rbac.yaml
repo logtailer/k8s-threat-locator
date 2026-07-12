@@ -1,0 +1,40 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: k8s-threat-locator-responder
+  labels:
+    managed-by: k8s-threat-locator
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list, patch]
+  - apiGroups: [""]
+    resources: [services, namespaces]
+    verbs: [get, list]
+  - apiGroups: [networking.k8s.io]
+    resources: [networkpolicies]
+    verbs: [get, list, create]
+  - apiGroups: [rbac.authorization.k8s.io]
+    resources: [rolebindings, clusterrolebindings]
+    verbs: [list]
+  # Required for _enrich_owner: walk ownerReferences up to root workload.
+  # Without this, workload-level quarantine falls back to ReplicaSet-name only
+  # and _quarantine_workload cannot fetch the pod selector.
+  - apiGroups: [apps]
+    resources: [replicasets, deployments, statefulsets, daemonsets]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: k8s-threat-locator-responder
+  labels:
+    managed-by: k8s-threat-locator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: k8s-threat-locator-responder
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: k8s-threat-locator-responders
