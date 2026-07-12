@@ -213,15 +213,18 @@ def _enrich_owner(
                     if rs_owner.kind == "Deployment":
                         ctx.owner_kind = "Deployment"
                         ctx.owner_name = rs_owner.name
+                        logger.info("Owner resolved: pod=%s/%s owner_kind=Deployment owner_name=%s", namespace, ctx.pod_name, rs_owner.name)
                         return
             except client.ApiException:
                 pass
             ctx.owner_kind = "ReplicaSet"
             ctx.owner_name = owner.name
+            logger.info("Owner resolved: pod=%s/%s owner_kind=ReplicaSet owner_name=%s", namespace, ctx.pod_name, owner.name)
             return
         elif owner.kind in ("StatefulSet", "DaemonSet"):
             ctx.owner_kind = owner.kind
             ctx.owner_name = owner.name
+            logger.info("Owner resolved: pod=%s/%s owner_kind=%s owner_name=%s", namespace, ctx.pod_name, owner.kind, owner.name)
             return
     logger.debug("Pod %s/%s has no recognised workload owner", namespace, ctx.pod_name)
 

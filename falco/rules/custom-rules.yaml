@@ -16,7 +16,7 @@
     image_tag=%container.image.tag pod_uid=%k8s.pod.uid parent=%proc.pname cmd=%proc.cmdline)
   priority: ERROR
   exceptions: []
-  tags: [shell, container, mitre_execution]
+  tags: [shell, container, mitre_execution, force_quarantine]
 
 - rule: write_to_etc
   desc: Detect any file write attempt under /etc/ inside a container
@@ -31,9 +31,9 @@
     (user=%user.name file=%fd.name container_id=%container.id
     container_name=%container.name pod=%k8s.pod.name ns=%k8s.ns.name
     image=%container.image.repository pod_uid=%k8s.pod.uid)
-  priority: ERROR  # ERROR triggers the SNS → Lambda quarantine response
+  priority: ERROR
   exceptions: []
-  tags: [filesystem, container, mitre_persistence]
+  tags: [filesystem, container, mitre_persistence, force_quarantine]
 
 - rule: unexpected_outbound_connection
   desc: Detect outbound network connections on unexpected ports from items-api
@@ -41,7 +41,7 @@
   condition: >
     outbound
     and items_api_container
-    and not fd.sport in (443, 53, 5000, 80)
+    and not fd.rport in (443, 53, 5000, 80)
     and fd.rport > 0
     and not fd.rip in (169.254.169.254)
   output: >
