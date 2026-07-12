@@ -81,7 +81,7 @@ cd ../app
 aws ecr get-login-password --region "$AWS_REGION" \
   | docker login --username AWS --password-stdin "$ECR_URL"
 
-docker build -t k8s-threat-locator:latest .
+docker build --platform linux/amd64 -t k8s-threat-locator:latest .
 docker tag k8s-threat-locator:latest "$ECR_URL:latest"
 docker push "$ECR_URL:latest"
 ```
