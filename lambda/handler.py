@@ -302,8 +302,8 @@ def handler(event, context):
             logger.warning("Alert missing pod/namespace fields — skipping. rule=%s fields=%s", rule, output_fields)
             continue
 
-        logger.info("Falco alert: rule=%s priority=%s pod=%s ns=%s time=%s",
-                    rule, priority, pod_name, namespace, alert.get("time"))
+        logger.info("Falco alert: rule=%s priority=%s pod=%s ns=%s tags=%s time=%s",
+                    rule, priority, pod_name, namespace, alert_tags, alert.get("time"))
 
         ca_cert_path = None
         try:
