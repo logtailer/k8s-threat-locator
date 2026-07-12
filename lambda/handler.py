@@ -296,6 +296,7 @@ def handler(event, context):
         namespace = output_fields.get("k8s.ns.name")
         rule = alert.get("rule", "unknown")
         priority = alert.get("priority", "unknown")
+        alert_tags = alert.get("tags") or []
 
         if not pod_name or not namespace:
             logger.warning("Alert missing pod/namespace fields — skipping. rule=%s fields=%s", rule, output_fields)
@@ -311,7 +312,7 @@ def handler(event, context):
             logger.info("Kubernetes clients initialised for pod %s/%s", namespace, pod_name)
 
             ctx = enrich(core_v1, rbac_v1, pod_name, namespace, apps_v1=apps_v1)
-            result = score(ctx, alert_rule=rule)
+            result = score(ctx, alert_rule=rule, alert_tags=alert_tags)
             _emit_triage_metric(pod_name, namespace, result.severity)
 
             if result.action == Action.QUARANTINE:
