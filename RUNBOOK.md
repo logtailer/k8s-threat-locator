@@ -13,7 +13,7 @@ kubectl version --client             # match your target EKS version
 helm version                         # >= 3.x
 docker info                          # daemon running
 sam --version                        # AWS SAM CLI
-python3 --version                    # >= 3.11 (Lambda runtime)
+python3 --version                    # >= 3.13 (Lambda runtime)
 ```
 
 You need AWS permissions for: EKS, VPC, IAM, ECR, SNS, Lambda, CloudWatch, S3, SQS.
@@ -46,6 +46,9 @@ terraform output          # print all
 export CLUSTER_NAME=$(terraform output -raw cluster_name)
 export ECR_URL=$(terraform output -raw ecr_repository_url)
 export IRSA_ROLE_ARN=$(terraform output -raw irsa_role_arn)
+export KUBECONFIG_BUCKET=$(terraform output -raw kubeconfig_bucket_name)
+export KUBECONFIG_KMS_KEY_ARN=$(terraform output -raw kubeconfig_kms_key_arn)
+export FALCOSIDEKICK_ROLE_ARN=$(terraform output -raw falcosidekick_role_arn)
 export AWS_REGION=us-east-1
 export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 ```
@@ -159,18 +162,9 @@ kubectl exec -n threat-demo "$POD" -- \
 
 ## Step 5 — Falco
 
-### 5a. Create SNS topic for Falcosidekick → Lambda
+> **Order:** Deploy Lambda (Step 6) before installing Falco — the SAM stack creates the `FalcoAlertsTopic` SNS topic. Steps 5b–5d use `$SNS_TOPIC_ARN` captured from that deploy.
 
-```bash
-SNS_TOPIC_ARN=$(aws sns create-topic \
-  --name k8s-threat-locator-falco \
-  --region "$AWS_REGION" \
-  --query TopicArn --output text)
-
-echo "SNS_TOPIC_ARN=$SNS_TOPIC_ARN"
-```
-
-### 5b. Grant Falcosidekick permission to publish
+### 5a. Grant Falcosidekick permission to publish
 
 Falcosidekick runs as a pod, so it needs an IAM policy. The simplest approach for a sandbox is to attach a policy to the node group role:
 
@@ -236,25 +230,18 @@ kubectl logs -n falco -l app.kubernetes.io/name=falco --tail=5 | grep shell_in_c
 
 ## Step 6 — Lambda triage responder
 
-### 6a. Create S3 bucket for kubeconfig
+### 6a. S3 bucket for kubeconfig
 
-```bash
-KUBECONFIG_BUCKET="k8s-threat-locator-kubeconfig-$AWS_ACCOUNT_ID"
-aws s3 mb "s3://$KUBECONFIG_BUCKET" --region "$AWS_REGION"
-
-# Block public access
-aws s3api put-public-access-block \
-  --bucket "$KUBECONFIG_BUCKET" \
-  --public-access-block-configuration \
-    BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
-```
+The bucket is Terraform-managed (module `kubeconfig_s3`). `$KUBECONFIG_BUCKET` and `$KUBECONFIG_KMS_KEY_ARN` are already set from Step 1 outputs — no manual creation needed.
 
 ### 6b. Upload kubeconfig
 
 The kubeconfig must use the private EKS endpoint. Verify the `server:` field points to the cluster endpoint returned by Terraform.
 
 ```bash
-aws s3 cp ~/.kube/config "s3://$KUBECONFIG_BUCKET/kubeconfig"
+aws s3 cp ~/.kube/config "s3://$KUBECONFIG_BUCKET/kubeconfig" \
+  --sse aws:kms \
+  --sse-kms-key-id "$KUBECONFIG_KMS_KEY_ARN"
 
 # Confirm the server endpoint in the uploaded kubeconfig
 aws s3 cp "s3://$KUBECONFIG_BUCKET/kubeconfig" - | grep server:
@@ -263,59 +250,35 @@ aws s3 cp "s3://$KUBECONFIG_BUCKET/kubeconfig" - | grep server:
 
 ### 6c. Grant Lambda access to the EKS cluster
 
-Lambda uses the kubeconfig to call the Kubernetes API. The Lambda IAM role must be added to the EKS `aws-auth` ConfigMap:
+The cluster uses `authentication_mode = "API"` — the `aws-auth` ConfigMap is disabled. Use the EKS Access Entries API to map the Lambda IAM role to a Kubernetes group:
 
 ```bash
 LAMBDA_ROLE_ARN="arn:aws:iam::$AWS_ACCOUNT_ID:role/k8s-threat-locator-lambda-role"
 
-# Edit the aws-auth ConfigMap
-kubectl edit configmap aws-auth -n kube-system
+aws eks create-access-entry \
+  --cluster-name "$CLUSTER_NAME" \
+  --principal-arn "$LAMBDA_ROLE_ARN" \
+  --kubernetes-groups k8s-threat-locator-responders \
+  --region "$AWS_REGION"
+
+# Verify the entry was created
+aws eks describe-access-entry \
+  --cluster-name "$CLUSTER_NAME" \
+  --principal-arn "$LAMBDA_ROLE_ARN" \
+  --region "$AWS_REGION" \
+  --query 'accessEntry.kubernetesGroups'
+# expect: ["k8s-threat-locator-responders"]
 ```
 
-Add under `mapRoles:`:
-
-```yaml
-- rolearn: arn:aws:iam::<ACCOUNT_ID>:role/k8s-threat-locator-lambda-role
-  username: lambda-quarantine
-  groups:
-    - k8s-threat-locator-responders
-```
-
-Then create the RBAC ClusterRole + ClusterRoleBinding:
+Then apply the RBAC ClusterRole + ClusterRoleBinding from the manifest:
 
 ```bash
-kubectl apply -f - <<EOF
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: k8s-threat-locator-responder
-rules:
-- apiGroups: [""]
-  resources: ["pods"]
-  verbs: ["get", "list", "patch"]
-- apiGroups: ["networking.k8s.io"]
-  resources: ["networkpolicies"]
-  verbs: ["get", "create"]
-- apiGroups: ["rbac.authorization.k8s.io"]
-  resources: ["rolebindings", "clusterrolebindings"]
-  verbs: ["list"]
-- apiGroups: [""]
-  resources: ["services", "namespaces"]
-  verbs: ["list", "get"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: k8s-threat-locator-responder
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: k8s-threat-locator-responder
-subjects:
-- kind: User
-  name: lambda-quarantine
-  apiGroup: rbac.authorization.k8s.io
-EOF
+kubectl apply -f k8s/lambda-rbac.yaml
+
+# Verify the binding exists
+kubectl auth can-i patch pods \
+  --as=aws:eks:$AWS_REGION:$AWS_ACCOUNT_ID:access-entry/k8s-threat-locator-lambda-role \
+  -n threat-demo
 ```
 
 ### 6d. Deploy Lambda
@@ -330,8 +293,16 @@ sam deploy \
   --capabilities CAPABILITY_NAMED_IAM \
   --region "$AWS_REGION" \
   --parameter-overrides \
-    SnsTopicArn="$SNS_TOPIC_ARN" \
-    KubeconfigBucket="$KUBECONFIG_BUCKET"
+    KubeconfigBucket="$KUBECONFIG_BUCKET" \
+    KubeconfigKmsKeyArn="$KUBECONFIG_KMS_KEY_ARN" \
+    FalcosidekickRoleArn="$FALCOSIDEKICK_ROLE_ARN"
+
+# The stack creates the FalcoAlertsTopic — capture its ARN for Falco Step 5
+SNS_TOPIC_ARN=$(aws cloudformation describe-stacks \
+  --stack-name k8s-threat-locator-lambda \
+  --query 'Stacks[0].Outputs[?OutputKey==`SnsTopicArn`].OutputValue' \
+  --output text --region "$AWS_REGION")
+echo "SNS_TOPIC_ARN=$SNS_TOPIC_ARN"
 ```
 
 **Verify:**
@@ -435,8 +406,8 @@ kubectl delete networkpolicy "quarantine-$POD" -n threat-demo
 **Lambda not quarantining**
 - `aws logs tail /aws/lambda/k8s-threat-locator-responder --since 10m`
 - Check Lambda can reach the EKS API: Lambda must be in the same VPC or the cluster must have a public endpoint
-- Check `aws-auth` ConfigMap has the Lambda role: `kubectl get configmap aws-auth -n kube-system -o yaml`
-- Check RBAC: `kubectl auth can-i patch pods --as=lambda-quarantine -n threat-demo`
+- Check the EKS Access Entry exists: `aws eks describe-access-entry --cluster-name "$CLUSTER_NAME" --principal-arn "$LAMBDA_ROLE_ARN" --region "$AWS_REGION"`
+- Check RBAC: `kubectl auth can-i patch pods --as-group=k8s-threat-locator-responders -n threat-demo`
 
 **DLQ has messages**
 - A message in the DLQ means Lambda errored after retries
@@ -463,12 +434,10 @@ helm uninstall falco -n falco
 kubectl delete namespace threat-demo
 kubectl delete namespace falco
 
-# Remove SNS topic
-aws sns delete-topic --topic-arn "$SNS_TOPIC_ARN" --region "$AWS_REGION"
+# Remove SNS topics — handled by CloudFormation stack deletion above
 
-# Remove kubeconfig bucket
-aws s3 rm "s3://$KUBECONFIG_BUCKET" --recursive
-aws s3 rb "s3://$KUBECONFIG_BUCKET"
+# Remove kubeconfig file (bucket and KMS key are Terraform-managed — terraform destroy handles them)
+aws s3 rm "s3://$KUBECONFIG_BUCKET/kubeconfig"
 
 # Destroy Terraform infrastructure (~10 min)
 cd terraform
