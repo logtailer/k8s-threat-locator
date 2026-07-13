@@ -7,7 +7,7 @@ Description: >
 
 Globals:
   Function:
-    Runtime: python3.11
+    Runtime: python3.13
     MemorySize: 256
     Timeout: 60
 
@@ -80,6 +80,8 @@ Resources:
 
   QuarantineDLQ:
     Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       QueueName: k8s-threat-locator-dlq
       MessageRetentionPeriod: 1209600  # 14 days
