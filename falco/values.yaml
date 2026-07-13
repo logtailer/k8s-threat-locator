@@ -26,12 +26,14 @@ falcosidekick:
   config:
     aws:
       # useirsa=true makes the chart annotate the falcosidekick ServiceAccount with rolearn
-      # so the pod picks up IRSA credentials instead of static keys
+      # so the pod picks up IRSA credentials instead of static keys.
+      # rolearn and sns.topicarn are injected at install time by scripts/bootstrap.sh
+      # via --set flags so no account-specific values live in this file.
       useirsa: true
-      rolearn: "arn:aws:iam::261599401243:role/k8s-threat-locator-falcosidekick"
+      rolearn: ""
       checkidentity: false
       sns:
-        topicarn: "arn:aws:sns:us-east-1:261599401243:falco-alerts"
+        topicarn: ""
         minimumpriority: "error"
         rawjson: true
       region: "us-east-1"
