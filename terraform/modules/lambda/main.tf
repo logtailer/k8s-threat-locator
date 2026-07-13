@@ -252,8 +252,6 @@ resource "aws_lambda_function" "responder" {
   s3_key           = "lambda.zip"
   source_code_hash = base64sha256(local.source_hash)
 
-  reserved_concurrent_executions = 10
-
   dead_letter_config {
     target_arn = aws_sqs_queue.dlq.arn
   }
