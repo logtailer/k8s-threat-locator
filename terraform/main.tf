@@ -65,6 +65,19 @@ module "kubeconfig_s3" {
   project     = var.project
 }
 
+module "lambda" {
+  source = "./modules/lambda"
+
+  project                = var.project
+  environment            = var.environment
+  account_id             = data.aws_caller_identity.current.account_id
+  aws_region             = var.aws_region
+  kubeconfig_bucket      = module.kubeconfig_s3.bucket_name
+  kubeconfig_kms_key_arn = module.kubeconfig_s3.kms_key_arn
+  falcosidekick_role_arn = aws_iam_role.falcosidekick.arn
+  lambda_src_dir         = abspath("${path.root}/../lambda")
+}
+
 resource "aws_iam_role" "falcosidekick" {
   name = "${var.cluster_name}-falcosidekick"
 

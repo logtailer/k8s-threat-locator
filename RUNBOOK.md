@@ -230,13 +230,11 @@ kubectl logs -n falco -l app.kubernetes.io/name=falco --tail=5 | grep shell_in_c
 
 ## Step 6 — Lambda triage responder
 
-### 6a. S3 bucket for kubeconfig
+Lambda, the SNS topics, DLQ, IAM role, and CloudWatch alarms are all deployed by Terraform (`module.lambda`). The Terraform apply in Step 1 already provisioned them. The `null_resource` inside the module built the Linux/amd64 package via Docker and uploaded it to S3 automatically.
 
-The bucket is Terraform-managed (module `kubeconfig_s3`). `$KUBECONFIG_BUCKET` and `$KUBECONFIG_KMS_KEY_ARN` are already set from Step 1 outputs — no manual creation needed.
+### 6a. Upload kubeconfig
 
-### 6b. Upload kubeconfig
-
-The kubeconfig must use the private EKS endpoint. Verify the `server:` field points to the cluster endpoint returned by Terraform.
+The kubeconfig bucket (`$KUBECONFIG_BUCKET`) was created by Terraform. Upload the kubeconfig with SSE-KMS:
 
 ```bash
 aws s3 cp ~/.kube/config "s3://$KUBECONFIG_BUCKET/kubeconfig" \
@@ -248,12 +246,12 @@ aws s3 cp "s3://$KUBECONFIG_BUCKET/kubeconfig" - | grep server:
 # expect: https://<cluster-id>.gr7.us-east-1.eks.amazonaws.com
 ```
 
-### 6c. Grant Lambda access to the EKS cluster
+### 6b. Grant Lambda access to the EKS cluster
 
-The cluster uses `authentication_mode = "API"` — the `aws-auth` ConfigMap is disabled. Use the EKS Access Entries API to map the Lambda IAM role to a Kubernetes group:
+The cluster uses `authentication_mode = "API"` — `aws-auth` ConfigMap is disabled. Use the EKS Access Entries API:
 
 ```bash
-LAMBDA_ROLE_ARN="arn:aws:iam::$AWS_ACCOUNT_ID:role/k8s-threat-locator-lambda-role"
+export LAMBDA_ROLE_ARN=$(terraform -chdir=terraform output -raw lambda_role_arn)
 
 aws eks create-access-entry \
   --cluster-name "$CLUSTER_NAME" \
@@ -261,7 +259,7 @@ aws eks create-access-entry \
   --kubernetes-groups k8s-threat-locator-responders \
   --region "$AWS_REGION"
 
-# Verify the entry was created
+# Verify
 aws eks describe-access-entry \
   --cluster-name "$CLUSTER_NAME" \
   --principal-arn "$LAMBDA_ROLE_ARN" \
@@ -270,42 +268,21 @@ aws eks describe-access-entry \
 # expect: ["k8s-threat-locator-responders"]
 ```
 
-Then apply the RBAC ClusterRole + ClusterRoleBinding from the manifest:
+Apply the RBAC ClusterRole + ClusterRoleBinding:
 
 ```bash
 kubectl apply -f k8s/lambda-rbac.yaml
-
-# Verify the binding exists
-kubectl auth can-i patch pods \
-  --as=aws:eks:$AWS_REGION:$AWS_ACCOUNT_ID:access-entry/k8s-threat-locator-lambda-role \
-  -n threat-demo
+kubectl auth can-i patch pods --as-group=k8s-threat-locator-responders -n threat-demo
 ```
 
-### 6d. Deploy Lambda
+### 6c. Capture SNS topic ARN for Falco
 
 ```bash
-cd lambda
-
-sam build --template template.yaml
-
-sam deploy \
-  --stack-name k8s-threat-locator-lambda \
-  --capabilities CAPABILITY_NAMED_IAM \
-  --region "$AWS_REGION" \
-  --parameter-overrides \
-    KubeconfigBucket="$KUBECONFIG_BUCKET" \
-    KubeconfigKmsKeyArn="$KUBECONFIG_KMS_KEY_ARN" \
-    FalcosidekickRoleArn="$FALCOSIDEKICK_ROLE_ARN"
-
-# The stack creates the FalcoAlertsTopic — capture its ARN for Falco Step 5
-SNS_TOPIC_ARN=$(aws cloudformation describe-stacks \
-  --stack-name k8s-threat-locator-lambda \
-  --query 'Stacks[0].Outputs[?OutputKey==`SnsTopicArn`].OutputValue' \
-  --output text --region "$AWS_REGION")
+export SNS_TOPIC_ARN=$(terraform -chdir=terraform output -raw falco_alerts_topic_arn)
 echo "SNS_TOPIC_ARN=$SNS_TOPIC_ARN"
 ```
 
-**Verify:**
+**Verify Lambda:**
 
 ```bash
 aws lambda get-function \
@@ -313,12 +290,6 @@ aws lambda get-function \
   --region "$AWS_REGION" \
   --query 'Configuration.State'
 # expect: "Active"
-
-# Confirm SNS subscription exists
-aws sns list-subscriptions-by-topic \
-  --topic-arn "$SNS_TOPIC_ARN" \
-  --region "$AWS_REGION"
-# expect: Protocol "lambda", Endpoint is the Lambda ARN
 ```
 
 ---
@@ -424,9 +395,6 @@ kubectl delete networkpolicy "quarantine-$POD" -n threat-demo
 ## Teardown
 
 ```bash
-# Remove Lambda stack
-sam delete --stack-name k8s-threat-locator-lambda --region "$AWS_REGION"
-
 # Remove Falco
 helm uninstall falco -n falco
 

@@ -75,6 +75,31 @@ output "kubeconfig_bucket_name" {
 }
 
 output "kubeconfig_kms_key_arn" {
-  description = "ARN of the KMS key encrypting the kubeconfig bucket — pass as KubeconfigKmsKeyArn to sam deploy"
+  description = "ARN of the KMS key encrypting the kubeconfig bucket"
   value       = module.kubeconfig_s3.kms_key_arn
+}
+
+output "lambda_function_name" {
+  description = "Name of the incident responder Lambda function"
+  value       = module.lambda.function_name
+}
+
+output "lambda_role_arn" {
+  description = "ARN of the Lambda execution role — create an EKS access entry for this role"
+  value       = module.lambda.lambda_role_arn
+}
+
+output "falco_alerts_topic_arn" {
+  description = "ARN of the Falco alerts SNS topic — set this as topicarn in falco/values.yaml"
+  value       = module.lambda.falco_alerts_topic_arn
+}
+
+output "ops_alerts_topic_arn" {
+  description = "ARN of the ops alerts SNS topic — subscribe your email/PagerDuty endpoint here"
+  value       = module.lambda.ops_alerts_topic_arn
+}
+
+output "dlq_url" {
+  description = "URL of the dead-letter queue — monitor for failed quarantine attempts"
+  value       = module.lambda.dlq_url
 }
