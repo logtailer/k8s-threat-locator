@@ -68,3 +68,13 @@ output "falcosidekick_role_arn" {
   description = "IRSA role ARN for Falcosidekick — set eks.amazonaws.com/role-arn on the falcosidekick ServiceAccount and pass as FalcosidekickRoleArn to sam deploy"
   value       = aws_iam_role.falcosidekick.arn
 }
+
+output "kubeconfig_bucket_name" {
+  description = "Name of the S3 bucket storing the Lambda kubeconfig — pass as KubeconfigBucket to sam deploy"
+  value       = module.kubeconfig_s3.bucket_name
+}
+
+output "kubeconfig_kms_key_arn" {
+  description = "ARN of the KMS key encrypting the kubeconfig bucket — pass as KubeconfigKmsKeyArn to sam deploy"
+  value       = module.kubeconfig_s3.kms_key_arn
+}

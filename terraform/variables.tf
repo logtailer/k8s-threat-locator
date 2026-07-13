@@ -40,6 +40,12 @@ variable "app_s3_bucket_name" {
   default     = "logtailer-terraform"
 }
 
+variable "kubeconfig_bucket_name" {
+  description = "Name of the S3 bucket that stores the Lambda kubeconfig — must be globally unique"
+  type        = string
+  default     = "k8s-threat-locator-kubeconfig"
+}
+
 variable "eks_public_access_cidrs" {
   description = "CIDR blocks permitted to reach the EKS public API endpoint. Set to your IP or VPN CIDR in production."
   type        = list(string)

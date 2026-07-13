@@ -57,6 +57,14 @@ module "irsa" {
   project                 = var.project
 }
 
+module "kubeconfig_s3" {
+  source = "./modules/s3"
+
+  bucket_name = var.kubeconfig_bucket_name
+  environment = var.environment
+  project     = var.project
+}
+
 resource "aws_iam_role" "falcosidekick" {
   name = "${var.cluster_name}-falcosidekick"
 
