@@ -17,6 +17,10 @@ Parameters:
     Description: ARN of the SNS topic that Falcosidekick publishes to (leave blank to create a new topic)
     Default: ""
 
+  KubeconfigKmsKeyArn:
+    Type: String
+    Description: ARN of the KMS CMK used to encrypt the kubeconfig S3 bucket (output of terraform kubeconfig_kms_key_arn)
+
   KubeconfigBucket:
     Type: String
     Description: S3 bucket name where the kubeconfig is stored
@@ -87,6 +91,7 @@ Resources:
       FunctionName: k8s-threat-locator-responder
       CodeUri: .
       Handler: handler.handler
+      ReservedConcurrentExecutions: 10
       Description: Quarantines compromised Kubernetes pods on Falco alert
       Role: !GetAtt IncidentResponderRole.Arn
       DeadLetterQueue:
@@ -166,6 +171,14 @@ Resources:
               - Effect: Allow
                 Action: sns:Publish
                 Resource: !Ref OpsAlertsTopic
+        - PolicyName: KmsDecryptKubeconfig
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: AllowDecryptKubeconfigKey
+                Effect: Allow
+                Action: kms:Decrypt
+                Resource: !Ref KubeconfigKmsKeyArn
 
   QuarantineAlarm:
     Type: AWS::CloudWatch::Alarm
