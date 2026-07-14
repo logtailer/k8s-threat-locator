@@ -23,6 +23,7 @@ env/
 *.tfvars
 .terraform.lock.hcl
 *.tfplan
+tfplan
 *.tfbackend
 
 # IDE
