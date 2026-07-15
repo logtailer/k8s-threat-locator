@@ -127,11 +127,10 @@ k8s-threat-locator/
 │   └── modules/            vpc / eks / ecr / irsa
 ├── k8s/                    Kubernetes manifests + Calico network policies
 ├── falco/                  Helm values + custom Falco rules
-├── lambda/                 Triage engine + quarantine responder (Python + SAM)
+├── lambda/                 Triage engine + quarantine responder (Python)
 │   ├── handler.py          Entry point — parse → enrich → score → act
 │   ├── triage.py           Context enrichment and scoring logic
-│   ├── template.yaml       SAM template — Lambda, DLQ, CloudWatch alarms
-│   └── tests/              pytest unit tests for triage scoring
+│   └── tests/              pytest unit tests for triage and handler
 ├── scripts/
 │   └── simulate-attack.sh  End-to-end attack simulation
 └── .github/workflows/      CI pipeline with Trivy vulnerability gate
@@ -306,7 +305,6 @@ Tests cover all triage scoring branches and enrichment paths (privileged contain
 - kubectl matching the EKS cluster version
 - Helm >= 3.x
 - Docker (local builds)
-- AWS SAM CLI (Lambda deployment)
 - Python 3.11+ (`make lambda-test`)
 
 ---
