@@ -162,7 +162,7 @@ kubectl exec -n threat-demo "$POD" -- \
 
 ## Step 5 — Falco
 
-> **Order:** Deploy Lambda (Step 6) before installing Falco — the SAM stack creates the `FalcoAlertsTopic` SNS topic. Steps 5b–5d use `$SNS_TOPIC_ARN` captured from that deploy.
+> **Note:** The `falco-alerts` SNS topic is created by Terraform (`module.lambda`) in Step 1 — it already exists by the time you reach this step. Steps 5b–5d use `$SNS_TOPIC_ARN` captured from `terraform output` (see Step 6c).
 
 ### 5a. Grant Falcosidekick permission to publish
 
