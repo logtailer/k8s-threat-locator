@@ -1,0 +1,20 @@
+# CVEs that are will_not_fix or fix_deferred in the base image distro —
+# no upstream patch exists and the base image maintainer has marked them as
+# won't fix. The intentionally vulnerable CVEs in requirements.txt (Flask,
+# Werkzeug, Jinja2) are NOT ignored — they're the ones the CI gate is
+# designed to catch.
+
+# zlib1g — integer overflow in zipOpenNewFileInZip4_6 (will_not_fix in Debian)
+CVE-2023-45853
+
+# libsqlite3-0 — integer overflow (affected, no fix available)
+CVE-2025-7458
+
+# perl-base — regex heap overflow on 32-bit (affected, no fix for bookworm)
+CVE-2026-8376
+
+# perl-base — silent regex incorrectness (affected, no fix for bookworm)
+CVE-2026-13221
+
+# perl-archive-tar — path traversal via symlinks (fix_deferred)
+CVE-2026-42496

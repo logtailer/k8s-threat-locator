@@ -69,6 +69,7 @@ jobs:
           format: sarif
           output: trivy-results.sarif
           severity: CRITICAL,HIGH,MEDIUM
+          trivyignores: app/.trivyignore
 
       - name: Upload SARIF to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
@@ -78,6 +79,8 @@ jobs:
 
       # Hard gate: exits 1 if any fixable critical CVEs are present.
       # This blocks the push job and keeps vulnerable images off ECR.
+      # will_not_fix and fix_deferred base-image CVEs are listed in app/.trivyignore.
+      # The intentional Flask==1.0.0 application CVEs are NOT ignored — they keep this red.
       - name: Fail on critical CVEs
         uses: aquasecurity/trivy-action@v0.20.0
         with:
@@ -87,6 +90,7 @@ jobs:
           ignore-unfixed: false
           exit-code: "1"
           format: table
+          trivyignores: app/.trivyignore
 
   push:
     runs-on: ubuntu-latest
