@@ -423,6 +423,18 @@ def handler(event, context):
                     ctx_owner_kind=ctx.owner_kind,
                     ctx_owner_name=ctx.owner_name,
                 )
+                # Quarantine is the most disruptive action we take — always page
+                # ops directly. The QuarantineApplied alarm only fires on a wave
+                # (>5/5min), so a single isolation would otherwise be silent.
+                _notify_ops(
+                    pod_name,
+                    namespace,
+                    result.severity,
+                    result.reason,
+                    rule=rule,
+                    priority=priority,
+                    score=result.score,
+                )
             elif result.action == Action.ANNOTATE:
                 core_v1.patch_namespaced_pod(
                     name=pod_name,
