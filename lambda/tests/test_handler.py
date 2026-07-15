@@ -115,3 +115,68 @@ class TestQuarantinePod:
         # No owner context -> nothing to fall back to, must not raise.
         handler._quarantine_pod(core_v1, net_v1, apps_v1, "pod-x", "threat-demo", "shell_in_container")
         net_v1.create_namespaced_network_policy.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# handler() — action dispatch based on the triage result
+# ---------------------------------------------------------------------------
+
+def _event(rule="shell_in_container", pod="pod-x", ns="threat-demo"):
+    message = {
+        "rule": rule,
+        "priority": "ERROR",
+        "tags": ["force_quarantine"],
+        "output_fields": {"k8s.pod.name": pod, "k8s.ns.name": ns},
+    }
+    return {"Records": [{"Sns": {"Message": json.dumps(message)}}]}
+
+
+def _triage(action, severity="critical", reason="r", score_=100):
+    result = MagicMock()
+    result.action = action
+    result.severity = severity
+    result.reason = reason
+    result.score = score_
+    return result
+
+
+class TestHandlerDispatch:
+    def _patches(self):
+        """Patch the boundaries so handler() runs without AWS or a cluster."""
+        clients = (MagicMock(), MagicMock(), MagicMock(), MagicMock(), "/tmp/no-such-ca.crt")
+        ctx = MagicMock(owner_kind="Deployment", owner_name="items-api")
+        return (
+            patch("handler._download_kubeconfig"),
+            patch("handler._get_k8s_clients", return_value=clients),
+            patch("handler.enrich", return_value=ctx),
+            patch("handler._emit_triage_metric"),
+            clients,
+        )
+
+    def test_quarantine_action_isolates_pod(self):
+        p_dl, p_clients, p_enrich, p_metric, _clients = self._patches()
+        with p_dl, p_clients, p_enrich, p_metric, \
+                patch("handler.score", return_value=_triage(handler.Action.QUARANTINE)), \
+                patch("handler._quarantine_pod") as quarantine:
+            handler.handler(_event(), None)
+        quarantine.assert_called_once()
+
+    def test_annotate_action_annotates_and_notifies(self):
+        p_dl, p_clients, p_enrich, p_metric, clients = self._patches()
+        core_v1 = clients[0]
+        with p_dl, p_clients, p_enrich, p_metric, \
+                patch("handler.score", return_value=_triage(handler.Action.ANNOTATE, "medium", "r", 25)), \
+                patch("handler._notify_ops") as notify:
+            handler.handler(_event(), None)
+        core_v1.patch_namespaced_pod.assert_called_once()
+        notify.assert_called_once()
+
+    def test_alert_only_takes_no_action(self):
+        p_dl, p_clients, p_enrich, p_metric, clients = self._patches()
+        core_v1 = clients[0]
+        with p_dl, p_clients, p_enrich, p_metric, \
+                patch("handler.score", return_value=_triage(handler.Action.ALERT_ONLY, "low", "r", 0)), \
+                patch("handler._quarantine_pod") as quarantine:
+            handler.handler(_event(), None)
+        quarantine.assert_not_called()
+        core_v1.patch_namespaced_pod.assert_not_called()
