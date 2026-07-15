@@ -12,7 +12,6 @@ terraform version                    # >= 1.6
 kubectl version --client             # match your target EKS version
 helm version                         # >= 3.x
 docker info                          # daemon running
-sam --version                        # AWS SAM CLI
 python3 --version                    # >= 3.13 (Lambda runtime)
 ```
 
@@ -406,7 +405,7 @@ kubectl delete networkpolicy "quarantine-$POD" -n threat-demo
 
 **Lambda can't reach EKS API**
 - The cluster uses a private endpoint — Lambda must be in the VPC
-- Add `VpcConfig` to the SAM template pointing to the private subnets and a security group that allows egress to port 443
+- Add a `vpc_config` block to `aws_lambda_function.responder` (`terraform/modules/lambda/main.tf`) pointing to the private subnets and a security group that allows egress to port 443
 - Or enable the public endpoint temporarily for testing: `aws eks update-cluster-config --name "$CLUSTER_NAME" --resources-vpc-config endpointPublicAccess=true`
 
 ---
