@@ -123,6 +123,4 @@ jobs:
         with:
           context: ./app
           push: true
-          tags: |
-            ${{ steps.ecr-login.outputs.registry }}/k8s-threat-locator:${{ github.sha }}
-            ${{ steps.ecr-login.outputs.registry }}/k8s-threat-locator:latest
+          tags: ${{ steps.ecr-login.outputs.registry }}/k8s-threat-locator:${{ github.sha }}
