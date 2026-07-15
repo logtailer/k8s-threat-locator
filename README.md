@@ -14,6 +14,7 @@ Most security tools tell you something happened. This project builds the layer t
 2. **Enriches** each alert with live cluster context — pod spec, service exposure, RBAC bindings
 3. **Scores** the finding (0–100) based on actual blast radius, not just the syscall pattern
 4. **Acts** proportionally — quarantine critical pods, annotate medium ones, log low-risk events
+5. **Notifies** — every quarantine and annotate pages ops via the `k8s-threat-locator-ops-alerts` SNS topic, so no automated isolation is silent
 
 The result: automated incident response that doesn't blindly quarantine every `kubectl exec` from a dev debugging a staging pod.
 
