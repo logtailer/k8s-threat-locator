@@ -26,48 +26,59 @@ class PodContext:
     has_dangerous_caps: bool = False
     runs_as_root: bool = False
     # Exposure
-    service_type: str = "None"   # ClusterIP | NodePort | LoadBalancer | None
+    service_type: str = "None"  # ClusterIP | NodePort | LoadBalancer | None
     # RBAC
     service_account: str = "default"
     has_cluster_admin: bool = False
     cluster_role_names: list[str] = field(default_factory=list)
     # Namespace
-    namespace_env: str = ""      # value of label environment=
+    namespace_env: str = ""  # value of label environment=
     is_system_namespace: bool = False
     # Owner workload — populated when pod is still alive at enrichment time
-    owner_kind: str = ""         # Deployment | StatefulSet | DaemonSet | ReplicaSet | ""
+    owner_kind: str = ""  # Deployment | StatefulSet | DaemonSet | ReplicaSet | ""
     owner_name: str = ""
 
 
 @dataclass
 class TriageResult:
-    score: int                   # 0–100
-    severity: str                # low | medium | high | critical
+    score: int  # 0–100
+    severity: str  # low | medium | high | critical
     action: Action
     reason: str
     context: PodContext
 
 
-_DANGEROUS_CAPS = frozenset({"CAP_SYS_ADMIN", "CAP_NET_ADMIN", "CAP_SYS_PTRACE", "CAP_SYS_MODULE"})
+_DANGEROUS_CAPS = frozenset(
+    {"CAP_SYS_ADMIN", "CAP_NET_ADMIN", "CAP_SYS_PTRACE", "CAP_SYS_MODULE"}
+)
 _SYSTEM_NAMESPACES = {"kube-system", "kube-public", "falco", "calico-system"}
 
 # Quarantine is never applied to these namespaces — isolating infrastructure pods (coredns,
 # kube-proxy, falco) would cascade into cluster-wide outages worse than the alert itself.
-_QUARANTINE_BLOCKED_NAMESPACES = frozenset({
-    "kube-system", "kube-public", "kube-node-lease",
-    "falco", "calico-system", "calico-apiserver", "tigera-operator",
-})
+_QUARANTINE_BLOCKED_NAMESPACES = frozenset(
+    {
+        "kube-system",
+        "kube-public",
+        "kube-node-lease",
+        "falco",
+        "calico-system",
+        "calico-apiserver",
+        "tigera-operator",
+    }
+)
 
 # Fallback for Falco deployments that do not yet carry the force_quarantine tag on their rules.
 # Preferred path: Falco rule carries tags: [..., force_quarantine] and alert_tags is checked in score().
 # This frozenset must be kept in sync with any Falco rule that should trigger immediate quarantine
 # but cannot be redeployed to add the tag (e.g. built-in upstream rules used without modification).
-_FORCE_QUARANTINE_RULES = frozenset({
-    "shell_in_container",
-    "write_to_etc",
-    "Terminal shell in container",
-    "Write below etc",
-})
+_FORCE_QUARANTINE_RULES = frozenset(
+    {
+        "shell_in_container",
+        "write_to_etc",
+        "Terminal shell in container",
+        "Write below etc",
+    }
+)
 
 
 def enrich(
@@ -90,7 +101,12 @@ def enrich(
         if apps_v1 is not None:
             _enrich_owner(ctx, apps_v1, pod, namespace)
     except client.ApiException as exc:
-        logger.warning("Could not fully enrich pod context for %s/%s: status=%s — using partial context", namespace, pod_name, exc.status)
+        logger.warning(
+            "Could not fully enrich pod context for %s/%s: status=%s — using partial context",
+            namespace,
+            pod_name,
+            exc.status,
+        )
 
     return ctx
 
@@ -114,7 +130,9 @@ def _enrich_pod_spec(ctx: PodContext, pod: client.V1Pod) -> None:
         if sc.privileged:
             ctx.has_privileged_container = True
         # Container-level override: explicit non-root enforcement clears pod-level flag.
-        if sc.run_as_non_root is True or (sc.run_as_user is not None and sc.run_as_user != 0):
+        if sc.run_as_non_root is True or (
+            sc.run_as_user is not None and sc.run_as_user != 0
+        ):
             ctx.runs_as_root = False
         elif sc.run_as_user == 0 or sc.run_as_non_root is False:
             ctx.runs_as_root = True
@@ -124,8 +142,13 @@ def _enrich_pod_spec(ctx: PodContext, pod: client.V1Pod) -> None:
                 ctx.has_dangerous_caps = True
 
     ctx.service_account = spec.service_account_name or "default"
-    logger.debug("Pod spec enriched: privileged=%s host_network=%s root=%s sa=%s",
-                 ctx.has_privileged_container, ctx.has_host_network, ctx.runs_as_root, ctx.service_account)
+    logger.debug(
+        "Pod spec enriched: privileged=%s host_network=%s root=%s sa=%s",
+        ctx.has_privileged_container,
+        ctx.has_host_network,
+        ctx.runs_as_root,
+        ctx.service_account,
+    )
 
 
 def _enrich_service_exposure(
@@ -156,8 +179,11 @@ def _enrich_rbac(
     try:
         bindings = rbac_v1.list_namespaced_role_binding(namespace=namespace)
         for rb in bindings.items:
-            for subject in (rb.subjects or []):
-                if subject.name == ctx.service_account and subject.kind == "ServiceAccount":
+            for subject in rb.subjects or []:
+                if (
+                    subject.name == ctx.service_account
+                    and subject.kind == "ServiceAccount"
+                ):
                     ref = rb.role_ref.name if rb.role_ref else ""
                     ctx.cluster_role_names.append(ref)
                     if ref == "cluster-admin":
@@ -167,7 +193,7 @@ def _enrich_rbac(
         while True:
             page = rbac_v1.list_cluster_role_binding(limit=200, _continue=cont)
             for crb in page.items:
-                for subject in (crb.subjects or []):
+                for subject in crb.subjects or []:
                     if (
                         subject.name == ctx.service_account
                         and subject.kind == "ServiceAccount"
@@ -207,33 +233,55 @@ def _enrich_owner(
     for owner in owners:
         if owner.kind == "ReplicaSet":
             try:
-                rs = apps_v1.read_namespaced_replica_set(name=owner.name, namespace=namespace)
+                rs = apps_v1.read_namespaced_replica_set(
+                    name=owner.name, namespace=namespace
+                )
                 rs_owners = (rs.metadata.owner_references or []) if rs.metadata else []
                 for rs_owner in rs_owners:
                     if rs_owner.kind == "Deployment":
                         ctx.owner_kind = "Deployment"
                         ctx.owner_name = rs_owner.name
-                        logger.info("Owner resolved: pod=%s/%s owner_kind=Deployment owner_name=%s", namespace, ctx.pod_name, rs_owner.name)
+                        logger.info(
+                            "Owner resolved: pod=%s/%s owner_kind=Deployment owner_name=%s",
+                            namespace,
+                            ctx.pod_name,
+                            rs_owner.name,
+                        )
                         return
             except client.ApiException:
                 pass
             ctx.owner_kind = "ReplicaSet"
             ctx.owner_name = owner.name
-            logger.info("Owner resolved: pod=%s/%s owner_kind=ReplicaSet owner_name=%s", namespace, ctx.pod_name, owner.name)
+            logger.info(
+                "Owner resolved: pod=%s/%s owner_kind=ReplicaSet owner_name=%s",
+                namespace,
+                ctx.pod_name,
+                owner.name,
+            )
             return
         elif owner.kind in ("StatefulSet", "DaemonSet"):
             ctx.owner_kind = owner.kind
             ctx.owner_name = owner.name
-            logger.info("Owner resolved: pod=%s/%s owner_kind=%s owner_name=%s", namespace, ctx.pod_name, owner.kind, owner.name)
+            logger.info(
+                "Owner resolved: pod=%s/%s owner_kind=%s owner_name=%s",
+                namespace,
+                ctx.pod_name,
+                owner.kind,
+                owner.name,
+            )
             return
     logger.debug("Pod %s/%s has no recognised workload owner", namespace, ctx.pod_name)
 
 
-def score(ctx: PodContext, alert_rule: str = "", alert_tags: list[str] | None = None) -> TriageResult:
+def score(
+    ctx: PodContext, alert_rule: str = "", alert_tags: list[str] | None = None
+) -> TriageResult:
     if ctx.namespace in _QUARANTINE_BLOCKED_NAMESPACES:
         logger.warning(
             "Triage: pod=%s/%s rule=%s — namespace is protected, downgrading to alert-only",
-            ctx.namespace, ctx.pod_name, alert_rule,
+            ctx.namespace,
+            ctx.pod_name,
+            alert_rule,
         )
         return TriageResult(
             score=0,
@@ -246,13 +294,14 @@ def score(ctx: PodContext, alert_rule: str = "", alert_tags: list[str] | None = 
     # Tag-based check is the preferred path; rule name fallback covers older Falco deployments
     # that predate the force_quarantine tag being added to rules.
     force_quarantine = (
-        (alert_tags is not None and "force_quarantine" in alert_tags)
-        or alert_rule in _FORCE_QUARANTINE_RULES
-    )
+        alert_tags is not None and "force_quarantine" in alert_tags
+    ) or alert_rule in _FORCE_QUARANTINE_RULES
     if force_quarantine:
         logger.info(
             "Triage: pod=%s/%s rule=%s forced quarantine (active-compromise rule)",
-            ctx.namespace, ctx.pod_name, alert_rule,
+            ctx.namespace,
+            ctx.pod_name,
+            alert_rule,
         )
         return TriageResult(
             score=100,
@@ -273,7 +322,9 @@ def score(ctx: PodContext, alert_rule: str = "", alert_tags: list[str] | None = 
         reasons.append("cluster-admin service account")
     elif ctx.cluster_role_names:
         points += 5
-        reasons.append(f"non-default role bindings: {', '.join(ctx.cluster_role_names[:3])}")
+        reasons.append(
+            f"non-default role bindings: {', '.join(ctx.cluster_role_names[:3])}"
+        )
     if ctx.service_type == "LoadBalancer":
         points += 40
         reasons.append("LoadBalancer service (internet-exposed)")
@@ -319,6 +370,14 @@ def score(ctx: PodContext, alert_rule: str = "", alert_tags: list[str] | None = 
     reason = ", ".join(reasons) if reasons else "no elevated risk factors"
     logger.info(
         "Triage: pod=%s/%s rule=%s score=%d severity=%s action=%s reason=[%s]",
-        ctx.namespace, ctx.pod_name, alert_rule, points, severity, action.value, reason,
+        ctx.namespace,
+        ctx.pod_name,
+        alert_rule,
+        points,
+        severity,
+        action.value,
+        reason,
     )
-    return TriageResult(score=points, severity=severity, action=action, reason=reason, context=ctx)
+    return TriageResult(
+        score=points, severity=severity, action=action, reason=reason, context=ctx
+    )

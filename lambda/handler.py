@@ -51,23 +51,27 @@ def _notify_ops(
         Subject=f"[k8s-threat-locator] {severity.upper()} — {namespace}/{pod_name}",
         Message=message,
     )
-    logger.info("Ops notification sent for pod %s/%s severity=%s", namespace, pod_name, severity)
+    logger.info(
+        "Ops notification sent for pod %s/%s severity=%s", namespace, pod_name, severity
+    )
 
 
 def _emit_triage_metric(pod_name: str, namespace: str, severity: str) -> None:
     cw = boto3.client("cloudwatch", region_name=AWS_REGION)
     cw.put_metric_data(
         Namespace="k8s-threat-locator",
-        MetricData=[{
-            "MetricName": "TriageScore",
-            "Dimensions": [
-                {"Name": "Namespace", "Value": namespace},
-                {"Name": "Pod", "Value": pod_name},
-                {"Name": "Severity", "Value": severity},
-            ],
-            "Value": 1,
-            "Unit": "Count",
-        }],
+        MetricData=[
+            {
+                "MetricName": "TriageScore",
+                "Dimensions": [
+                    {"Name": "Namespace", "Value": namespace},
+                    {"Name": "Pod", "Value": pod_name},
+                    {"Name": "Severity", "Value": severity},
+                ],
+                "Value": 1,
+                "Unit": "Count",
+            }
+        ],
     )
 
 
@@ -88,7 +92,12 @@ def _emit_quarantine_metric(pod_name: str, namespace: str, rule: str = "") -> No
             }
         ],
     )
-    logger.info("Emitted QuarantineApplied metric for pod %s/%s rule=%s", namespace, pod_name, rule)
+    logger.info(
+        "Emitted QuarantineApplied metric for pod %s/%s rule=%s",
+        namespace,
+        pod_name,
+        rule,
+    )
 
 
 def _generate_eks_token(cluster_name: str, region: str) -> str:
@@ -100,7 +109,9 @@ def _generate_eks_token(cluster_name: str, region: str) -> str:
     request = AWSRequest(method="GET", url=url, headers={"x-k8s-aws-id": cluster_name})
     signer.add_auth(request)
     presigned = request.url
-    token = "k8s-aws-v1." + re.sub(r"=+$", "", base64.urlsafe_b64encode(presigned.encode()).decode())
+    token = "k8s-aws-v1." + re.sub(
+        r"=+$", "", base64.urlsafe_b64encode(presigned.encode()).decode()
+    )
     return token
 
 
@@ -116,7 +127,9 @@ def _get_k8s_clients() -> tuple:
     context_name = kube_cfg.get("current-context", "")
     # ARN format: arn:aws:eks:<region>:<account>:cluster/<name>
     parts = context_name.split(":")
-    cluster_name = parts[-1].split("/")[-1] if "/" in parts[-1] else "k8s-threat-locator"
+    cluster_name = (
+        parts[-1].split("/")[-1] if "/" in parts[-1] else "k8s-threat-locator"
+    )
     region = parts[3] if len(parts) > 3 else AWS_REGION
 
     token = _generate_eks_token(cluster_name, region)
@@ -152,7 +165,9 @@ def _workload_policy_name(owner_name: str) -> str:
     return name[:63].rstrip("-")
 
 
-def _build_quarantine_policy(name: str, namespace: str, match_labels: dict) -> client.V1NetworkPolicy:
+def _build_quarantine_policy(
+    name: str, namespace: str, match_labels: dict
+) -> client.V1NetworkPolicy:
     return client.V1NetworkPolicy(
         api_version="networking.k8s.io/v1",
         kind="NetworkPolicy",
@@ -182,33 +197,69 @@ def _quarantine_workload(
 ) -> None:
     try:
         if owner_kind == "Deployment":
-            obj = apps_v1.read_namespaced_deployment(name=owner_name, namespace=namespace)
+            obj = apps_v1.read_namespaced_deployment(
+                name=owner_name, namespace=namespace
+            )
         elif owner_kind == "StatefulSet":
-            obj = apps_v1.read_namespaced_stateful_set(name=owner_name, namespace=namespace)
+            obj = apps_v1.read_namespaced_stateful_set(
+                name=owner_name, namespace=namespace
+            )
         elif owner_kind == "DaemonSet":
-            obj = apps_v1.read_namespaced_daemon_set(name=owner_name, namespace=namespace)
+            obj = apps_v1.read_namespaced_daemon_set(
+                name=owner_name, namespace=namespace
+            )
         elif owner_kind == "ReplicaSet":
-            obj = apps_v1.read_namespaced_replica_set(name=owner_name, namespace=namespace)
+            obj = apps_v1.read_namespaced_replica_set(
+                name=owner_name, namespace=namespace
+            )
         else:
-            logger.warning("Unknown owner kind %s — cannot quarantine workload", owner_kind)
+            logger.warning(
+                "Unknown owner kind %s — cannot quarantine workload", owner_kind
+            )
             return
     except client.ApiException as exc:
-        logger.error("Could not fetch %s %s/%s for workload quarantine: status=%s", owner_kind, namespace, owner_name, exc.status)
+        logger.error(
+            "Could not fetch %s %s/%s for workload quarantine: status=%s",
+            owner_kind,
+            namespace,
+            owner_name,
+            exc.status,
+        )
         return
 
-    match_labels = (obj.spec.selector.match_labels or {}) if obj.spec and obj.spec.selector else {}
+    match_labels = (
+        (obj.spec.selector.match_labels or {}) if obj.spec and obj.spec.selector else {}
+    )
     if not match_labels:
-        logger.warning("%s %s/%s has no pod selector — skipping workload quarantine", owner_kind, namespace, owner_name)
+        logger.warning(
+            "%s %s/%s has no pod selector — skipping workload quarantine",
+            owner_kind,
+            namespace,
+            owner_name,
+        )
         return
 
-    policy = _build_quarantine_policy(_workload_policy_name(owner_name), namespace, match_labels)
+    policy = _build_quarantine_policy(
+        _workload_policy_name(owner_name), namespace, match_labels
+    )
     try:
         networking_v1.create_namespaced_network_policy(namespace=namespace, body=policy)
-        logger.info("Workload quarantine NetworkPolicy applied for %s %s/%s rule=%s", owner_kind, namespace, owner_name, rule)
+        logger.info(
+            "Workload quarantine NetworkPolicy applied for %s %s/%s rule=%s",
+            owner_kind,
+            namespace,
+            owner_name,
+            rule,
+        )
         _emit_quarantine_metric(owner_name, namespace, rule=rule)
     except client.ApiException as exc:
         if exc.status == 409:
-            logger.info("Workload quarantine policy already exists for %s %s/%s — skipping", owner_kind, namespace, owner_name)
+            logger.info(
+                "Workload quarantine policy already exists for %s %s/%s — skipping",
+                owner_kind,
+                namespace,
+                owner_name,
+            )
         else:
             raise
 
@@ -227,9 +278,16 @@ def _download_kubeconfig() -> None:
         s3.download_file(KUBECONFIG_BUCKET, KUBECONFIG_KEY, KUBECONFIG_PATH)
     except ClientError as exc:
         code = exc.response["Error"]["Code"]
-        logger.error("S3 download failed (bucket=%s key=%s): %s", KUBECONFIG_BUCKET, KUBECONFIG_KEY, code)
+        logger.error(
+            "S3 download failed (bucket=%s key=%s): %s",
+            KUBECONFIG_BUCKET,
+            KUBECONFIG_KEY,
+            code,
+        )
         raise
-    logger.info("Downloaded kubeconfig from s3://%s/%s", KUBECONFIG_BUCKET, KUBECONFIG_KEY)
+    logger.info(
+        "Downloaded kubeconfig from s3://%s/%s", KUBECONFIG_BUCKET, KUBECONFIG_KEY
+    )
 
 
 def _quarantine_pod(
@@ -251,22 +309,46 @@ def _quarantine_pod(
         logger.info("Labelled pod %s/%s with quarantine=true", namespace, pod_name)
     except client.ApiException as exc:
         if exc.status == 404:
-            logger.warning("Pod %s/%s no longer exists — attempting workload quarantine instead", namespace, pod_name)
+            logger.warning(
+                "Pod %s/%s no longer exists — attempting workload quarantine instead",
+                namespace,
+                pod_name,
+            )
             if ctx_owner_kind and ctx_owner_name:
-                _quarantine_workload(apps_v1, networking_v1, ctx_owner_kind, ctx_owner_name, namespace, rule)
+                _quarantine_workload(
+                    apps_v1,
+                    networking_v1,
+                    ctx_owner_kind,
+                    ctx_owner_name,
+                    namespace,
+                    rule,
+                )
             else:
-                logger.error("Pod %s/%s is gone and no owner info available — quarantine skipped", namespace, pod_name)
+                logger.error(
+                    "Pod %s/%s is gone and no owner info available — quarantine skipped",
+                    namespace,
+                    pod_name,
+                )
             return
         raise
 
-    policy = _build_quarantine_policy(_policy_name(pod_name), namespace, {"quarantine": "true"})
+    policy = _build_quarantine_policy(
+        _policy_name(pod_name), namespace, {"quarantine": "true"}
+    )
     try:
         networking_v1.create_namespaced_network_policy(namespace=namespace, body=policy)
-        logger.info("Quarantine NetworkPolicy applied for pod %s/%s", namespace, pod_name)
+        logger.info(
+            "Quarantine NetworkPolicy applied for pod %s/%s", namespace, pod_name
+        )
         _emit_quarantine_metric(pod_name, namespace, rule=rule)
     except client.ApiException as exc:
         if exc.status == 409:
-            logger.info("Quarantine policy already exists for pod %s/%s rule=%s — skipping", namespace, pod_name, rule)
+            logger.info(
+                "Quarantine policy already exists for pod %s/%s rule=%s — skipping",
+                namespace,
+                pod_name,
+                rule,
+            )
         else:
             raise
 
@@ -279,7 +361,9 @@ def _parse_alert(record: dict) -> dict | None:
     try:
         return json.loads(sns_payload.get("Message", "{}"))
     except json.JSONDecodeError:
-        logger.warning("Could not parse SNS message as JSON: %s", sns_payload.get("Message"))
+        logger.warning(
+            "Could not parse SNS message as JSON: %s", sns_payload.get("Message")
+        )
         return None
 
 
@@ -299,17 +383,30 @@ def handler(event, context):
         alert_tags = alert.get("tags") or []
 
         if not pod_name or not namespace:
-            logger.warning("Alert missing pod/namespace fields — skipping. rule=%s fields=%s", rule, output_fields)
+            logger.warning(
+                "Alert missing pod/namespace fields — skipping. rule=%s fields=%s",
+                rule,
+                output_fields,
+            )
             continue
 
-        logger.info("Falco alert: rule=%s priority=%s pod=%s ns=%s tags=%s time=%s",
-                    rule, priority, pod_name, namespace, alert_tags, alert.get("time"))
+        logger.info(
+            "Falco alert: rule=%s priority=%s pod=%s ns=%s tags=%s time=%s",
+            rule,
+            priority,
+            pod_name,
+            namespace,
+            alert_tags,
+            alert.get("time"),
+        )
 
         ca_cert_path = None
         try:
             _download_kubeconfig()
             core_v1, networking_v1, rbac_v1, apps_v1, ca_cert_path = _get_k8s_clients()
-            logger.info("Kubernetes clients initialised for pod %s/%s", namespace, pod_name)
+            logger.info(
+                "Kubernetes clients initialised for pod %s/%s", namespace, pod_name
+            )
 
             ctx = enrich(core_v1, rbac_v1, pod_name, namespace, apps_v1=apps_v1)
             result = score(ctx, alert_rule=rule, alert_tags=alert_tags)
@@ -317,22 +414,58 @@ def handler(event, context):
 
             if result.action == Action.QUARANTINE:
                 _quarantine_pod(
-                    core_v1, networking_v1, apps_v1, pod_name, namespace, rule,
-                    ctx_owner_kind=ctx.owner_kind, ctx_owner_name=ctx.owner_name,
+                    core_v1,
+                    networking_v1,
+                    apps_v1,
+                    pod_name,
+                    namespace,
+                    rule,
+                    ctx_owner_kind=ctx.owner_kind,
+                    ctx_owner_name=ctx.owner_name,
                 )
             elif result.action == Action.ANNOTATE:
                 core_v1.patch_namespaced_pod(
                     name=pod_name,
                     namespace=namespace,
-                    body={"metadata": {"annotations": {"triage-severity": result.severity, "triage-reason": result.reason}}},
+                    body={
+                        "metadata": {
+                            "annotations": {
+                                "triage-severity": result.severity,
+                                "triage-reason": result.reason,
+                            }
+                        }
+                    },
                 )
-                logger.info("Annotated pod %s/%s severity=%s reason=%s", namespace, pod_name, result.severity, result.reason)
-                _notify_ops(pod_name, namespace, result.severity, result.reason,
-                            rule=rule, priority=priority, score=result.score)
+                logger.info(
+                    "Annotated pod %s/%s severity=%s reason=%s",
+                    namespace,
+                    pod_name,
+                    result.severity,
+                    result.reason,
+                )
+                _notify_ops(
+                    pod_name,
+                    namespace,
+                    result.severity,
+                    result.reason,
+                    rule=rule,
+                    priority=priority,
+                    score=result.score,
+                )
             else:
-                logger.info("Alert-only for pod %s/%s score=%d reason=%s", namespace, pod_name, result.score, result.reason)
+                logger.info(
+                    "Alert-only for pod %s/%s score=%d reason=%s",
+                    namespace,
+                    pod_name,
+                    result.score,
+                    result.reason,
+                )
         except Exception:
-            logger.exception("Unhandled error while processing alert for pod %s/%s", namespace, pod_name)
+            logger.exception(
+                "Unhandled error while processing alert for pod %s/%s",
+                namespace,
+                pod_name,
+            )
             raise
         finally:
             if os.path.exists(KUBECONFIG_PATH):
