@@ -282,6 +282,23 @@ export SNS_TOPIC_ARN=$(terraform -chdir=terraform output -raw falco_alerts_topic
 echo "SNS_TOPIC_ARN=$SNS_TOPIC_ARN"
 ```
 
+### 6d. Subscribe to ops alerts
+
+The responder pages a human on **every quarantine and annotate** via the
+`k8s-threat-locator-ops-alerts` topic. Subscribe an endpoint so those
+notifications reach someone (without a subscriber they are silently dropped):
+
+```bash
+export OPS_ALERTS_TOPIC_ARN=$(terraform -chdir=terraform output -raw ops_alerts_topic_arn)
+
+# Email (confirm via the link AWS emails you), or wire to PagerDuty/Slack.
+aws sns subscribe \
+  --topic-arn "$OPS_ALERTS_TOPIC_ARN" \
+  --protocol email \
+  --notification-endpoint you@example.com \
+  --region "$AWS_REGION"
+```
+
 **Verify Lambda:**
 
 ```bash
