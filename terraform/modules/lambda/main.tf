@@ -137,8 +137,8 @@ resource "aws_iam_role_policy" "cloudwatch_logs" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect = "Allow"
-      Action = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+      Effect   = "Allow"
+      Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
       Resource = "arn:aws:logs:${var.aws_region}:${var.account_id}:log-group:/aws/lambda/${var.project}-responder:*"
     }]
   })
@@ -230,9 +230,9 @@ resource "aws_sns_topic" "ops_alerts" {
 # ── SQS dead-letter queue ──────────────────────────────────────────────────────
 
 resource "aws_sqs_queue" "dlq" {
-  name                       = "${var.project}-dlq"
-  message_retention_seconds  = 1209600  # 14 days
-  sqs_managed_sse_enabled    = true
+  name                      = "${var.project}-dlq"
+  message_retention_seconds = 1209600 # 14 days
+  sqs_managed_sse_enabled   = true
 
   tags = local.tags
 }
@@ -247,6 +247,10 @@ resource "aws_lambda_function" "responder" {
   handler       = "handler.handler"
   memory_size   = 256
   timeout       = 60
+
+  # Cap fan-out: an alert wave (or a runaway Falco rule) could otherwise spawn
+  # unbounded concurrent invocations, each writing to the K8s API.
+  reserved_concurrent_executions = var.reserved_concurrency
 
   s3_bucket        = aws_s3_bucket.artifacts.bucket
   s3_key           = "lambda.zip"
