@@ -93,3 +93,25 @@ class TestQuarantinePod:
         # Must not raise — quarantine is idempotent.
         handler._quarantine_pod(core_v1, net_v1, apps_v1, "pod-x", "threat-demo", "write_to_etc")
         core_v1.patch_namespaced_pod.assert_called_once()
+
+    def test_pod_gone_404_falls_back_to_workload(self, _metric):
+        core_v1, net_v1, apps_v1 = MagicMock(), MagicMock(), MagicMock()
+        core_v1.patch_namespaced_pod.side_effect = k8s_client.ApiException(status=404)
+        # Deployment lookup returns a selector so a workload policy can be built.
+        deploy = MagicMock()
+        deploy.spec.selector.match_labels = {"app": "items-api"}
+        apps_v1.read_namespaced_deployment.return_value = deploy
+
+        handler._quarantine_pod(
+            core_v1, net_v1, apps_v1, "pod-x", "threat-demo", "shell_in_container",
+            ctx_owner_kind="Deployment", ctx_owner_name="items-api",
+        )
+        apps_v1.read_namespaced_deployment.assert_called_once()
+        net_v1.create_namespaced_network_policy.assert_called_once()
+
+    def test_pod_gone_404_without_owner_skips(self, _metric):
+        core_v1, net_v1, apps_v1 = MagicMock(), MagicMock(), MagicMock()
+        core_v1.patch_namespaced_pod.side_effect = k8s_client.ApiException(status=404)
+        # No owner context -> nothing to fall back to, must not raise.
+        handler._quarantine_pod(core_v1, net_v1, apps_v1, "pod-x", "threat-demo", "shell_in_container")
+        net_v1.create_namespaced_network_policy.assert_not_called()
