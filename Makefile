@@ -1,4 +1,4 @@
-.PHONY: lint docker-build lambda-build lambda-test tf-plan bootstrap simulate-attack
+.PHONY: lint docker-build lambda-test tf-plan bootstrap simulate-attack
 
 # IMAGE_TAG controls which ECR tag bootstrap deploys (default: latest)
 IMAGE_TAG ?= latest
@@ -10,9 +10,6 @@ lint:
 
 docker-build:
 	docker build --platform linux/amd64 -t k8s-threat-locator-app:local app/
-
-lambda-build:
-	sam build --template lambda/template.yaml
 
 lambda-test:
 	cd lambda && python -m pytest tests/ -v --tb=short
