@@ -73,3 +73,23 @@ class TestBuildQuarantinePolicy:
         policy = handler._build_quarantine_policy("q", "ns", labels)
         assert policy.spec.pod_selector.match_labels == labels
         assert policy.metadata.labels["managed-by"] == "k8s-threat-locator"
+
+
+# ---------------------------------------------------------------------------
+# _quarantine_pod() — label the pod, then apply a deny-all NetworkPolicy
+# ---------------------------------------------------------------------------
+
+@patch("handler._emit_quarantine_metric")
+class TestQuarantinePod:
+    def test_labels_pod_and_creates_policy(self, _metric):
+        core_v1, net_v1, apps_v1 = MagicMock(), MagicMock(), MagicMock()
+        handler._quarantine_pod(core_v1, net_v1, apps_v1, "pod-x", "threat-demo", "shell_in_container")
+        core_v1.patch_namespaced_pod.assert_called_once()
+        net_v1.create_namespaced_network_policy.assert_called_once()
+
+    def test_existing_policy_409_is_swallowed(self, _metric):
+        core_v1, net_v1, apps_v1 = MagicMock(), MagicMock(), MagicMock()
+        net_v1.create_namespaced_network_policy.side_effect = k8s_client.ApiException(status=409)
+        # Must not raise — quarantine is idempotent.
+        handler._quarantine_pod(core_v1, net_v1, apps_v1, "pod-x", "threat-demo", "write_to_etc")
+        core_v1.patch_namespaced_pod.assert_called_once()
