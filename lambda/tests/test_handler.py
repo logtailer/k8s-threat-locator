@@ -25,3 +25,30 @@ class TestParseAlert:
         record = {"Sns": {"Message": json.dumps(payload)}}
         parsed = handler._parse_alert(record)
         assert parsed == payload
+
+
+# ---------------------------------------------------------------------------
+# _policy_name() / _workload_policy_name() — NetworkPolicy names must be a
+# valid DNS-1123 label (<=63 chars, no trailing '-')
+# ---------------------------------------------------------------------------
+
+class TestPolicyName:
+    def test_short_name_is_prefixed(self):
+        assert handler._policy_name("items-api-abc") == "quarantine-items-api-abc"
+
+    def test_long_name_truncated_to_63(self):
+        name = handler._policy_name("p" * 100)
+        assert len(name) <= 63
+
+    def test_no_trailing_hyphen_after_truncation(self):
+        # Craft a name whose 63-char cut would land on a '-'.
+        pod = "a" * 51 + "-bbbbbbbbbbbb"
+        name = handler._policy_name(pod)
+        assert len(name) <= 63
+        assert not name.endswith("-")
+
+    def test_workload_name_prefixed_and_bounded(self):
+        name = handler._workload_policy_name("d" * 100)
+        assert name.startswith("quarantine-workload-")
+        assert len(name) <= 63
+        assert not name.endswith("-")
