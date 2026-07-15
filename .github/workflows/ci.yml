@@ -1,5 +1,5 @@
 name: CI
-# Trivy scan gate: pipeline fails on any CRITICAL CVE in the app image.
+# Trivy scan gate: pipeline fails on any HIGH or CRITICAL CVE in the app image.
 # The push job only runs after the scan passes — intentionally blocked by Flask==1.0.0.
 # Permissions are scoped to minimum required for each job.
 
@@ -77,16 +77,17 @@ jobs:
           sarif_file: trivy-results.sarif
           wait-for-processing: true
 
-      # Hard gate: exits 1 if any fixable critical CVEs are present.
+      # Hard gate: exits 1 if any HIGH or CRITICAL CVEs are present (fixable or not).
       # This blocks the push job and keeps vulnerable images off ECR.
       # will_not_fix and fix_deferred base-image CVEs are listed in app/.trivyignore.
-      # The intentional Flask==1.0.0 application CVEs are NOT ignored — they keep this red.
-      - name: Fail on critical CVEs
+      # The intentional Flask==1.0.0 / Werkzeug==0.14.1 / Jinja2==2.10 CVEs are HIGH
+      # severity and are NOT ignored — they keep this gate permanently red.
+      - name: Fail on HIGH and CRITICAL CVEs
         uses: aquasecurity/trivy-action@v0.20.0
         with:
           scan-type: image
           image-ref: ${{ env.IMAGE_NAME }}:${{ github.sha }}
-          severity: CRITICAL
+          severity: HIGH,CRITICAL
           ignore-unfixed: false
           exit-code: "1"
           format: table

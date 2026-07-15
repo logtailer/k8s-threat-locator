@@ -142,7 +142,7 @@ k8s-threat-locator/
 
 | Stage | Control | Proof |
 |-------|---------|-------|
-| Build | Trivy CVE gate | CI pipeline is permanently red on `Flask==1.0.0` |
+| Build | Trivy CVE gate (HIGH+CRITICAL) | CI pipeline is permanently red on `Flask==1.0.0` / `Werkzeug==0.14.1` |
 | Deploy | Calico default-deny | `kubectl run test -- ping 8.8.8.8` times out |
 | Runtime | IRSA | `aws sts get-caller-identity` returns scoped role ARN |
 | Runtime | Falco | Alert fires within seconds of `kubectl exec` |
