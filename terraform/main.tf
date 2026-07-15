@@ -24,18 +24,18 @@ module "vpc" {
 module "eks" {
   source = "./modules/eks"
 
-  cluster_name        = var.cluster_name
-  cluster_version     = var.cluster_version
-  vpc_id              = module.vpc.vpc_id
-  private_subnet_ids  = module.vpc.private_subnet_ids
-  environment         = var.environment
-  project             = var.project
+  cluster_name                = var.cluster_name
+  cluster_version             = var.cluster_version
+  vpc_id                      = module.vpc.vpc_id
+  private_subnet_ids          = module.vpc.private_subnet_ids
+  environment                 = var.environment
+  project                     = var.project
   ecr_repository_arn          = module.ecr.repository_arn
   cluster_public_access_cidrs = var.eks_public_access_cidrs
   node_instance_type          = var.node_instance_type
-  desired_nodes       = var.desired_nodes
-  min_nodes           = var.min_nodes
-  max_nodes           = var.max_nodes
+  desired_nodes               = var.desired_nodes
+  min_nodes                   = var.min_nodes
+  max_nodes                   = var.max_nodes
 }
 
 module "ecr" {
@@ -76,6 +76,7 @@ module "lambda" {
   kubeconfig_kms_key_arn = module.kubeconfig_s3.kms_key_arn
   falcosidekick_role_arn = aws_iam_role.falcosidekick.arn
   lambda_src_dir         = abspath("${path.root}/../lambda")
+  reserved_concurrency   = var.lambda_reserved_concurrency
 }
 
 resource "aws_iam_role" "falcosidekick" {

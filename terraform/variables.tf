@@ -75,3 +75,9 @@ variable "max_nodes" {
   type        = number
   default     = 4
 }
+
+variable "lambda_reserved_concurrency" {
+  description = "Max concurrent responder Lambda executions — caps fan-out during an alert wave"
+  type        = number
+  default     = 10
+}
