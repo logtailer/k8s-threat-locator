@@ -232,6 +232,8 @@ kubectl logs -n falco -l app.kubernetes.io/name=falco --tail=5 | grep shell_in_c
 
 Lambda, the SNS topics, DLQ, IAM role, and CloudWatch alarms are all deployed by Terraform (`module.lambda`). The Terraform apply in Step 1 already provisioned them. The `null_resource` inside the module built the Linux/amd64 package via Docker and uploaded it to S3 automatically.
 
+> The responder is capped at 10 concurrent executions (`reserved_concurrent_executions`) so an alert wave can't overwhelm the Kubernetes API with simultaneous quarantine writes. Tune with the root variable `lambda_reserved_concurrency`.
+
 ### 6a. Upload kubeconfig
 
 The kubeconfig bucket (`$KUBECONFIG_BUCKET`) was created by Terraform. Upload the kubeconfig with SSE-KMS:
