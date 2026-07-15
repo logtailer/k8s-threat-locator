@@ -200,19 +200,19 @@ Set `falcosidekick.config.aws.sns.topicarn` in `falco/values.yaml` to the SNS to
 
 ### 4. Deploy the Lambda triage responder
 
+The responder Lambda, its IAM role, the SNS topics, DLQ, and CloudWatch
+alarms are all provisioned by `terraform apply` (`module.lambda`) in step 1 —
+the module builds and uploads the deployment package automatically. The only
+manual step is making the cluster reachable by uploading the kubeconfig:
+
 ```bash
-# Upload kubeconfig so Lambda can reach the cluster
-aws s3 cp ~/.kube/config s3://<your-kubeconfig-bucket>/kubeconfig
-
-sam build --template lambda/template.yaml
-
-sam deploy \
-  --stack-name k8s-threat-locator-lambda \
-  --capabilities CAPABILITY_NAMED_IAM \
-  --parameter-overrides \
-    SnsTopicArn=<sns-topic-arn> \
-    KubeconfigBucket=<your-kubeconfig-bucket>
+# Upload kubeconfig so Lambda can reach the cluster (SSE-KMS)
+aws s3 cp ~/.kube/config "s3://$(terraform -chdir=terraform output -raw kubeconfig_bucket_name)/kubeconfig" \
+  --sse aws:kms \
+  --sse-kms-key-id "$(terraform -chdir=terraform output -raw kubeconfig_kms_key_arn)"
 ```
+
+See [RUNBOOK.md](RUNBOOK.md) Step 6 for cluster access entries and ops-alert subscription.
 
 ### 5. Simulate an attack
 
