@@ -112,41 +112,41 @@ class TestEnrich:
         pod.spec.init_containers = []  # must be explicit — unset MagicMock is truthy
         return pod
 
+    def _make_rbac(self, crbs=None):
+        rbac_v1 = MagicMock()
+        rbac_v1.list_namespaced_role_binding.return_value.items = []
+        rbac_v1.list_cluster_role_binding.return_value.items = crbs or []
+        # _continue must be None (not an unset MagicMock) so the pagination
+        # while-loop in _enrich_rbac terminates after the first page.
+        rbac_v1.list_cluster_role_binding.return_value.metadata._continue = None
+        return rbac_v1
+
     def test_privileged_container_detected(self):
         core_v1 = MagicMock()
-        rbac_v1 = MagicMock()
         core_v1.read_namespaced_pod.return_value = self._make_pod(privileged=True)
         core_v1.list_namespaced_service.return_value.items = []
-        rbac_v1.list_namespaced_role_binding.return_value.items = []
-        rbac_v1.list_cluster_role_binding.return_value.items = []
         core_v1.read_namespace.return_value.metadata.labels = {}
 
-        ctx = enrich(core_v1, rbac_v1, "test-pod", "threat-demo")
+        ctx = enrich(core_v1, self._make_rbac(), "test-pod", "threat-demo")
         assert ctx.has_privileged_container is True
 
     def test_loadbalancer_service_detected(self):
         core_v1 = MagicMock()
-        rbac_v1 = MagicMock()
         core_v1.read_namespaced_pod.return_value = self._make_pod()
         svc = MagicMock()
         svc.spec.type = "LoadBalancer"
         svc.spec.selector = {"app": "items-api"}
         core_v1.list_namespaced_service.return_value.items = [svc]
-        rbac_v1.list_namespaced_role_binding.return_value.items = []
-        rbac_v1.list_cluster_role_binding.return_value.items = []
         core_v1.read_namespace.return_value.metadata.labels = {}
 
-        ctx = enrich(core_v1, rbac_v1, "test-pod", "threat-demo")
+        ctx = enrich(core_v1, self._make_rbac(), "test-pod", "threat-demo")
         assert ctx.service_type == "LoadBalancer"
 
     def test_cluster_admin_binding_detected(self):
-        from kubernetes import client as k8s_client
         core_v1 = MagicMock()
-        rbac_v1 = MagicMock()
         core_v1.read_namespaced_pod.return_value = self._make_pod(service_account="app-sa")
         core_v1.list_namespaced_service.return_value.items = []
         core_v1.read_namespace.return_value.metadata.labels = {}
-        rbac_v1.list_namespaced_role_binding.return_value.items = []
 
         crb = MagicMock()
         subject = MagicMock()
@@ -155,24 +155,22 @@ class TestEnrich:
         subject.namespace = "threat-demo"
         crb.subjects = [subject]
         crb.role_ref.name = "cluster-admin"
-        rbac_v1.list_cluster_role_binding.return_value.items = [crb]
 
-        ctx = enrich(core_v1, rbac_v1, "test-pod", "threat-demo")
+        ctx = enrich(core_v1, self._make_rbac(crbs=[crb]), "test-pod", "threat-demo")
         assert ctx.has_cluster_admin is True
 
     def test_pod_not_found_returns_partial_context(self):
         from kubernetes import client as k8s_client
+
         core_v1 = MagicMock()
-        rbac_v1 = MagicMock()
         core_v1.read_namespaced_pod.side_effect = k8s_client.ApiException(status=404)
 
-        ctx = enrich(core_v1, rbac_v1, "missing-pod", "threat-demo")
+        ctx = enrich(core_v1, self._make_rbac(), "missing-pod", "threat-demo")
         assert ctx.pod_name == "missing-pod"
         assert ctx.has_privileged_container is False
 
     def test_init_container_privileged_detected(self):
         core_v1 = MagicMock()
-        rbac_v1 = MagicMock()
         pod = self._make_pod()
         init_container = MagicMock()
         init_container.security_context.privileged = True
@@ -181,15 +179,14 @@ class TestEnrich:
         pod.spec.init_containers = [init_container]
         core_v1.read_namespaced_pod.return_value = pod
         core_v1.list_namespaced_service.return_value.items = []
-        rbac_v1.list_namespaced_role_binding.return_value.items = []
-        rbac_v1.list_cluster_role_binding.return_value.items = []
         core_v1.read_namespace.return_value.metadata.labels = {}
 
-        ctx = enrich(core_v1, rbac_v1, "test-pod", "threat-demo")
+        ctx = enrich(core_v1, self._make_rbac(), "test-pod", "threat-demo")
         assert ctx.has_privileged_container is True
 
     def test_rbac_permission_denied_does_not_raise(self):
         from kubernetes import client as k8s_client
+
         core_v1 = MagicMock()
         rbac_v1 = MagicMock()
         core_v1.read_namespaced_pod.return_value = self._make_pod()
