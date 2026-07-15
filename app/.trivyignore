@@ -10,11 +10,5 @@ CVE-2023-45853
 # libsqlite3-0 — integer overflow (affected, no fix available)
 CVE-2025-7458
 
-# perl-base — regex heap overflow on 32-bit (affected, no fix for bookworm)
-CVE-2026-8376
-
-# perl-base — silent regex incorrectness (affected, no fix for bookworm)
-CVE-2026-13221
-
-# perl-archive-tar — path traversal via symlinks (fix_deferred)
-CVE-2026-42496
+# perl-base CVEs (CVE-2026-8376, CVE-2026-13221, CVE-2026-42496) are not listed
+# here because perl-base is removed from the image in the Dockerfile.

@@ -3,8 +3,13 @@ FROM python:3.11-slim
 WORKDIR /app
 
 COPY requirements.txt .
-# --no-cache-dir keeps the image lean
-RUN pip install --no-cache-dir -r requirements.txt
+# --no-cache-dir keeps the image lean; perl-base is removed because it is not
+# needed by a Python runtime and carries CVEs with no upstream fix available.
+RUN pip install --no-cache-dir -r requirements.txt \
+    && apt-get update \
+    && apt-get purge -y --allow-remove-essential perl perl-base \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY app.py .
 
