@@ -1,6 +1,7 @@
 # k8s-threat-locator
 
-[![CI](https://github.com/anandsumit2000/k8s-threat-locator/actions/workflows/ci.yml/badge.svg)](https://github.com/anandsumit2000/k8s-threat-locator/actions/workflows/ci.yml)
+[![Lint & Test](https://github.com/logtailer/k8s-threat-locator/actions/workflows/lint-test.yml/badge.svg)](https://github.com/logtailer/k8s-threat-locator/actions/workflows/lint-test.yml)
+[![CVE Gate (intentionally red)](https://github.com/logtailer/k8s-threat-locator/actions/workflows/ci.yml/badge.svg)](https://github.com/logtailer/k8s-threat-locator/actions/workflows/ci.yml)
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
 [![Terraform](https://img.shields.io/badge/terraform-%3E%3D1.6-623CE4.svg)](https://www.terraform.io/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)

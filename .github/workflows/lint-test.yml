@@ -1,0 +1,55 @@
+name: Lint & Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install linters
+        run: pip install ruff==0.3.0 yamllint
+
+      - name: ruff check
+        run: ruff check lambda/handler.py lambda/triage.py
+
+      - name: ruff format
+        run: ruff format --check lambda/handler.py lambda/triage.py
+
+      - name: yamllint
+        run: yamllint -d relaxed falco/values.yaml falco/rules/custom-rules.yaml k8s/
+
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install pytest kubernetes pyyaml boto3 urllib3"<2"
+
+      - name: Run tests
+        working-directory: lambda
+        run: python -m pytest tests/ -v --tb=short
