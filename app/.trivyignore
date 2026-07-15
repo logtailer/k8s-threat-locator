@@ -1,14 +1,34 @@
-# CVEs that are will_not_fix or fix_deferred in the base image distro —
-# no upstream patch exists and the base image maintainer has marked them as
-# won't fix. The intentionally vulnerable CVEs in requirements.txt (Flask,
-# Werkzeug, Jinja2) are NOT ignored — they're the ones the CI gate is
-# designed to catch.
+# CVEs with no upstream fix in the Debian trixie base image, or in build-time
+# Python tools removed from the runtime image.
+#
+# The intentional Flask==1.0.0 / Werkzeug==0.14.1 / Jinja2==2.10 CVEs are
+# NOT listed here — they keep the CI gate permanently red by design.
 
-# zlib1g — integer overflow in zipOpenNewFileInZip4_6 (will_not_fix in Debian)
+# ── zlib1g / libsqlite3-0 (pre-existing, will_not_fix) ──────────────────────
 CVE-2023-45853
-
-# libsqlite3-0 — integer overflow (affected, no fix available)
 CVE-2025-7458
 
-# perl-base CVEs (CVE-2026-8376, CVE-2026-13221, CVE-2026-42496) are not listed
-# here because perl-base is removed from the image in the Dockerfile.
+# ── util-linux family: libblkid integer overflow (affected, no fix) ──────────
+# Affects: bsdutils, libblkid1, liblastlog2-2, libmount1, libsmartcols1,
+#          libuuid1, login, mount, util-linux
+CVE-2026-53615
+
+# ── gzip: LZH decompression buffer overflow (affected, no fix) ───────────────
+CVE-2026-41992
+
+# ── libacl1: symlink traversal in libacl functions (affected, no fix) ────────
+CVE-2026-54369
+
+# ── ncurses: buffer overflow (affected, no fix) ───────────────────────────────
+# Affects: libncursesw6, libtinfo6, ncurses-base, ncurses-bin
+CVE-2025-69720
+
+# ── jaraco.context: path traversal via tar archives ──────────────────────────
+# Transitive dependency of pip/setuptools — not installed by requirements.txt
+# and not present in the runtime image (wheel and jaraco.context are uninstalled
+# in the Dockerfile after pip completes).
+CVE-2026-23949
+
+# ── wheel: code execution via malicious wheel file ───────────────────────────
+# Build-time tool uninstalled from the runtime image in the Dockerfile.
+CVE-2026-24049
