@@ -52,3 +52,24 @@ class TestPolicyName:
         assert name.startswith("quarantine-workload-")
         assert len(name) <= 63
         assert not name.endswith("-")
+
+
+# ---------------------------------------------------------------------------
+# _build_quarantine_policy() — must produce a deny-all NetworkPolicy
+# ---------------------------------------------------------------------------
+
+class TestBuildQuarantinePolicy:
+    def test_deny_all_ingress_and_egress(self):
+        policy = handler._build_quarantine_policy(
+            "quarantine-p", "threat-demo", {"quarantine": "true"}
+        )
+        assert policy.spec.policy_types == ["Ingress", "Egress"]
+        # Empty rule lists = deny-all in both directions.
+        assert policy.spec.ingress == []
+        assert policy.spec.egress == []
+
+    def test_selector_matches_supplied_labels(self):
+        labels = {"app": "items-api"}
+        policy = handler._build_quarantine_policy("q", "ns", labels)
+        assert policy.spec.pod_selector.match_labels == labels
+        assert policy.metadata.labels["managed-by"] == "k8s-threat-locator"
