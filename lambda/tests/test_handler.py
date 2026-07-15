@@ -161,6 +161,17 @@ class TestHandlerDispatch:
             handler.handler(_event(), None)
         quarantine.assert_called_once()
 
+    def test_quarantine_notifies_ops(self):
+        # Quarantine is disruptive — it must page ops directly, not rely on the
+        # wave alarm. Regression guard for the "silent isolation" gap.
+        p_dl, p_clients, p_enrich, p_metric, _clients = self._patches()
+        with p_dl, p_clients, p_enrich, p_metric, \
+                patch("handler.score", return_value=_triage(handler.Action.QUARANTINE)), \
+                patch("handler._quarantine_pod"), \
+                patch("handler._notify_ops") as notify:
+            handler.handler(_event(), None)
+        notify.assert_called_once()
+
     def test_annotate_action_annotates_and_notifies(self):
         p_dl, p_clients, p_enrich, p_metric, clients = self._patches()
         core_v1 = clients[0]
