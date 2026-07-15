@@ -43,3 +43,9 @@ variable "lambda_src_dir" {
   description = "Absolute path to the lambda/ source directory containing handler.py, triage.py, requirements.txt"
   type        = string
 }
+
+variable "reserved_concurrency" {
+  description = "Max concurrent responder executions — caps fan-out during an alert wave so the K8s API isn't overwhelmed"
+  type        = number
+  default     = 10
+}
