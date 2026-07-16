@@ -90,6 +90,12 @@ class TestScore:
         result = score(_ctx(has_dangerous_caps=True))
         assert result.score >= 15
 
+    def test_imds_rule_forces_quarantine(self):
+        # Rule-name fallback (no tags) must force-quarantine IMDS access.
+        result = score(_ctx(), alert_rule="imds_access_from_container")
+        assert result.action == Action.QUARANTINE
+        assert result.severity == "critical"
+
 
 # ---------------------------------------------------------------------------
 # enrich() — integration-style tests with mocked k8s clients

@@ -75,6 +75,7 @@ _FORCE_QUARANTINE_RULES = frozenset(
     {
         "shell_in_container",
         "write_to_etc",
+        "imds_access_from_container",
         "Terminal shell in container",
         "Write below etc",
     }
