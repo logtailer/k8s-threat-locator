@@ -294,8 +294,21 @@ def _enrich_owner(
 
 
 def score(
-    ctx: PodContext, alert_rule: str = "", alert_tags: list[str] | None = None
+    ctx: PodContext,
+    alert_rule: str = "",
+    alert_tags: list[str] | None = None,
+    evidence: AlertEvidence | None = None,
 ) -> TriageResult:
+    if evidence is not None:
+        logger.info(
+            "Triage evidence: pod=%s/%s proc=%s parent=%s uid=%s cmd=%s",
+            ctx.namespace,
+            ctx.pod_name,
+            evidence.proc_name,
+            evidence.proc_pname,
+            evidence.user_uid,
+            evidence.proc_cmdline,
+        )
     if ctx.namespace in _QUARANTINE_BLOCKED_NAMESPACES:
         logger.warning(
             "Triage: pod=%s/%s rule=%s — namespace is protected, downgrading to alert-only",
