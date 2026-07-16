@@ -116,11 +116,6 @@ jobs:
     # only push on direct pushes to main, not on pull_request events
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -131,9 +126,18 @@ jobs:
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Push image to ECR
-        uses: docker/build-push-action@v5
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
         with:
-          context: ./app
-          push: true
-          tags: ${{ steps.ecr-login.outputs.registry }}/k8s-threat-locator:${{ github.sha }}
+          name: app-image
+          path: /tmp
+
+      - name: Load image
+        run: docker load -i /tmp/image.tar
+
+      # Push the exact bytes Trivy scanned — no rebuild.
+      - name: Tag and push scanned image to ECR
+        run: |
+          REG=${{ steps.ecr-login.outputs.registry }}
+          docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} "$REG/k8s-threat-locator:${{ github.sha }}"
+          docker push "$REG/k8s-threat-locator:${{ github.sha }}"
