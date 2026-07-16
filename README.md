@@ -192,8 +192,10 @@ helm install falco falcosecurity/falco \
   --namespace falco --create-namespace \
   --version 4.3.0 \
   -f falco/values.yaml \
-  --set-file falco.rules_file[0]=falco/rules/custom-rules.yaml
+  --set-file 'customRules.custom-rules\.yaml=falco/rules/custom-rules.yaml'
 ```
+
+`falco/rules/custom-rules.yaml` is the single source of the deployed rules — `--set-file` injects it as the `customRules` entry. (`scripts/bootstrap.sh` does the same automatically.)
 
 Set `falcosidekick.config.aws.sns.topicarn` in `falco/values.yaml` to the SNS topic ARN before installing.
 

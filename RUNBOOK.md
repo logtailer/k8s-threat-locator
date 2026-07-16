@@ -202,8 +202,10 @@ helm install falco falcosecurity/falco \
   --namespace falco --create-namespace \
   --version 4.3.0 \
   -f falco/values.yaml \
-  --set-file falco.rules_file[0]=falco/rules/custom-rules.yaml
+  --set-file 'customRules.custom-rules\.yaml=falco/rules/custom-rules.yaml'
 ```
+
+> The rules deployed to the cluster come solely from `falco/rules/custom-rules.yaml` (injected via `--set-file`). `falco/values.yaml` no longer carries a `customRules` block.
 
 **Verify:**
 
