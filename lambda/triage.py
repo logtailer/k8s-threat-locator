@@ -301,6 +301,29 @@ def _enrich_owner(
     logger.debug("Pod %s/%s has no recognised workload owner", namespace, ctx.pod_name)
 
 
+# Interpreter tokens that, when a downloader is piped into them, indicate a
+# drop-and-execute command (e.g. `curl … | sh`).
+_INTERPRETER_TOKENS = frozenset(
+    {"sh", "bash", "zsh", "python", "python3", "perl", "ruby", "node"}
+)
+
+
+def _cmdline_is_high_intent(cmdline: str) -> bool:
+    """Detect a downloader piped into an interpreter — download-and-execute.
+
+    Conservative: requires a pipe, a fetch tool (curl/wget), and an interpreter
+    token on the far side of the pipe. This is the first syscall-derived scoring
+    signal; keep it tight to avoid false positives.
+    """
+    if not cmdline or "|" not in cmdline:
+        return False
+    lowered = cmdline.lower()
+    if "curl" not in lowered and "wget" not in lowered:
+        return False
+    after_pipe = lowered.split("|", 1)[1]
+    return any(token in _INTERPRETER_TOKENS for token in after_pipe.split())
+
+
 def _force_quarantine_reason(
     alert_rule: str, evidence: AlertEvidence | None
 ) -> str:
@@ -420,6 +443,12 @@ def score(
     elif ctx.namespace_env == "staging":
         points += 5
         reasons.append("staging namespace")
+
+    # Syscall-derived signal: a download piped into an interpreter is a strong
+    # compromise indicator regardless of pod posture.
+    if evidence is not None and _cmdline_is_high_intent(evidence.proc_cmdline):
+        points += 20
+        reasons.append("download-and-execute command line")
 
     points = max(0, min(100, points))
 
