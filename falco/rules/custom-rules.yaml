@@ -68,3 +68,39 @@
   exceptions: []
   tags: [network, container, mitre_credential_access, force_quarantine]
 
+# ── Detect-only rules (ERROR, no force_quarantine) ────────────────────────────
+# Observe real signal before promoting any of these to auto-quarantine.
+
+- rule: serviceaccount_token_read
+  desc: Detect a read of the mounted Kubernetes ServiceAccount token from items-api (credential theft)
+  enabled: true
+  condition: >
+    open_read
+    and items_api_container
+    and fd.name contains "/serviceaccount/token"
+  output: >
+    ServiceAccount token read in items-api
+    (user=%user.name proc=%proc.name cmd=%proc.cmdline file=%fd.name
+    container_id=%container.id pod=%k8s.pod.name ns=%k8s.ns.name
+    image=%container.image.repository pod_uid=%k8s.pod.uid)
+  priority: ERROR
+  exceptions: []
+  tags: [filesystem, container, mitre_credential_access]
+
+- rule: proc_environ_read
+  desc: Detect a read of /proc/<pid>/environ from items-api (leaks env-injected secrets)
+  enabled: true
+  condition: >
+    open_read
+    and items_api_container
+    and fd.name startswith /proc/
+    and fd.name endswith /environ
+  output: >
+    /proc environ read in items-api
+    (user=%user.name proc=%proc.name cmd=%proc.cmdline file=%fd.name
+    container_id=%container.id pod=%k8s.pod.name ns=%k8s.ns.name
+    image=%container.image.repository pod_uid=%k8s.pod.uid)
+  priority: ERROR
+  exceptions: []
+  tags: [filesystem, container, mitre_credential_access]
+
