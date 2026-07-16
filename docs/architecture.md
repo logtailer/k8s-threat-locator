@@ -30,8 +30,8 @@ flowchart TD
         PARSE --> ENRICH --> FORCE
         FORCE -->|shell_in_container\nwrite_to_etc| CRIT[severity=critical\nQUARANTINE]
         FORCE -->|other rules| SCORE
-        SCORE -->|score >= 70| CRIT
-        SCORE -->|20-69| ANN[annotate pod]
+        SCORE -->|score >= 40| CRIT
+        SCORE -->|20-39| ANN[annotate pod]
         SCORE -->|less than 20| AONLY[alert only]
     end
 
