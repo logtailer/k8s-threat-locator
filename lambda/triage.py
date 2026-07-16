@@ -324,9 +324,7 @@ def _cmdline_is_high_intent(cmdline: str) -> bool:
     return any(token in _INTERPRETER_TOKENS for token in after_pipe.split())
 
 
-def _force_quarantine_reason(
-    alert_rule: str, evidence: AlertEvidence | None
-) -> str:
+def _force_quarantine_reason(alert_rule: str, evidence: AlertEvidence | None) -> str:
     """Annotate a force-quarantine with WHY, using the parent process.
 
     The action is always QUARANTINE (safety first); this only helps a responder
@@ -340,10 +338,7 @@ def _force_quarantine_reason(
             f"{base} — application RCE "
             f"(process spawned by app runtime '{evidence.proc_pname}')"
         )
-    return (
-        f"{base} — likely interactive exec "
-        f"(parent '{evidence.proc_pname}'), review"
-    )
+    return f"{base} — likely interactive exec (parent '{evidence.proc_pname}'), review"
 
 
 def score(
