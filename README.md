@@ -64,8 +64,8 @@ flowchart TD
         PARSE --> ENRICH --> FORCE
         FORCE -->|shell_in_container\nwrite_to_etc| CRIT[severity=critical\nQUARANTINE]
         FORCE -->|other rules| SCORE
-        SCORE -->|score >= 70| CRIT
-        SCORE -->|20-69| ANN[annotate pod]
+        SCORE -->|score >= 40| CRIT
+        SCORE -->|20-39| ANN[annotate pod]
         SCORE -->|less than 20| AONLY[alert only]
     end
 
@@ -94,8 +94,9 @@ flowchart TD
 
 **Actions:**
 - `score < 20` → `alert_only` — log + `TriageScore` metric, no Kubernetes changes
-- `20 ≤ score < 70` → `annotate` — patch pod with `triage-severity` and `triage-reason` annotations
-- `score ≥ 70` → `quarantine` — label pod `quarantine=true`, apply deny-all NetworkPolicy, emit `QuarantineApplied` metric
+- `20 ≤ score < 40` → `annotate` — patch pod with `triage-severity` and `triage-reason` annotations
+- `40 ≤ score < 70` → `quarantine` (high) — label pod `quarantine=true`, apply deny-all NetworkPolicy, emit `QuarantineApplied` metric
+- `score ≥ 70` → `quarantine` (critical) — same actions, critical severity
 
 ---
 
@@ -231,9 +232,9 @@ The script triggers the `write_to_etc` Falco rule, polls for the quarantine Netw
 
 | Rule | Trigger | Priority | Response |
 |------|---------|----------|----------|
-| `shell_in_container` | Shell binary spawned in container | ERROR | Triage → quarantine if score ≥ 70 |
-| `write_to_etc` | File write under `/etc/` inside container | ERROR | Triage → quarantine if score ≥ 70 |
-| `unexpected_outbound_connection` | Outbound from `items-api` on non-standard port | WARNING | Triage → annotate or alert_only |
+| `shell_in_container` | Shell binary spawned in container | ERROR | Force-quarantine (immediate) |
+| `write_to_etc` | File write under `/etc/` inside container | ERROR | Force-quarantine (immediate) |
+| `unexpected_outbound_connection` | Outbound from `items-api` on non-standard port | WARNING | Detect-only (dropped before triage by priority filter) |
 | `imds_access_from_container` | Connection to the instance metadata endpoint (`169.254.169.254`) from `items-api` — SSRF / credential theft | ERROR | Force-quarantine (immediate) |
 
 All rules output: `container.id`, `container.name`, `k8s.pod.name`, `k8s.ns.name`, `k8s.pod.uid`, `container.image.repository`, `container.image.tag`.

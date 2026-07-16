@@ -133,4 +133,4 @@ Two Falco rules bypass the 0–100 scoring path entirely and always map to `seve
 - `shell_in_container` / `Terminal shell in container`
 - `write_to_etc` / `Write below etc`
 
-All other rules go through the scoring function. The threshold for quarantine via scoring is `score >= 70`.
+All other rules go through the scoring function, which maps score to action as: `>= 70` critical/quarantine, `40–69` high/quarantine, `20–39` medium/annotate, `< 20` low/alert-only. The threshold for quarantine via scoring is `score >= 40`.
