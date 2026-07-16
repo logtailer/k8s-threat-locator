@@ -43,6 +43,18 @@ jobs:
           load: true
           tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
 
+      # Save the exact image so the scan and push jobs reuse these bytes
+      # instead of rebuilding — guarantees we promote what we scanned.
+      - name: Save image as artifact
+        run: docker save ${{ env.IMAGE_NAME }}:${{ github.sha }} -o /tmp/image.tar
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-image
+          path: /tmp/image.tar
+          retention-days: 1
+
   trivy-scan:
     runs-on: ubuntu-latest
     timeout-minutes: 20
