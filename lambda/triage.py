@@ -40,6 +40,25 @@ class PodContext:
 
 
 @dataclass
+class AlertEvidence:
+    """Syscall-level fields carried by a Falco alert's output_fields.
+
+    Distinct from PodContext (which is live cluster posture) — this is what the
+    kernel actually observed at the moment the rule fired. All optional so an
+    alert missing a field degrades gracefully.
+    """
+
+    proc_name: str = ""  # process that triggered the rule
+    proc_pname: str = ""  # its parent — separates app-RCE (parent=app) from human exec
+    proc_cmdline: str = ""  # full command line — intent signal
+    user_uid: str = ""
+    fd_name: str = ""  # file path for filesystem rules
+    fd_rip: str = ""  # remote IP for network rules
+    fd_rport: str = ""  # remote port for network rules
+    pod_uid: str = ""  # k8s.pod.uid — stable identity beyond the pod name
+
+
+@dataclass
 class TriageResult:
     score: int  # 0–100
     severity: str  # low | medium | high | critical
