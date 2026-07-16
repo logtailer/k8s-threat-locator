@@ -104,3 +104,24 @@
   exceptions: []
   tags: [filesystem, container, mitre_credential_access]
 
+- rule: reverse_shell_via_interpreter
+  desc: Detect an interpreter used as a reverse shell in items-api (shell_in_container misses this — no shell binary is spawned)
+  enabled: true
+  condition: >
+    spawned_process
+    and items_api_container
+    and proc.name in (python, python3, perl, ruby, node)
+    and (proc.cmdline contains "socket"
+         or proc.cmdline contains "/dev/tcp"
+         or proc.cmdline contains "pty.spawn"
+         or proc.cmdline contains "os.dup2"
+         or proc.cmdline contains "fsockopen")
+  output: >
+    Interpreter reverse shell in items-api
+    (user=%user.name proc=%proc.name parent=%proc.pname cmd=%proc.cmdline
+    container_id=%container.id pod=%k8s.pod.name ns=%k8s.ns.name
+    image=%container.image.repository pod_uid=%k8s.pod.uid)
+  priority: ERROR
+  exceptions: []
+  tags: [shell, container, mitre_execution]
+
