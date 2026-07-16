@@ -106,6 +106,28 @@ class TestScore:
         assert without.score == with_ev.score
         assert without.action == with_ev.action
 
+    def test_app_runtime_parent_reads_as_app_rce(self):
+        from triage import AlertEvidence
+
+        ev = AlertEvidence(proc_name="sh", proc_pname="python")
+        result = score(_ctx(), alert_rule="shell_in_container", evidence=ev)
+        assert result.action == Action.QUARANTINE
+        assert "application RCE" in result.reason
+
+    def test_non_app_parent_reads_as_interactive_exec(self):
+        from triage import AlertEvidence
+
+        ev = AlertEvidence(proc_name="bash", proc_pname="runc:[2:INIT]")
+        result = score(_ctx(), alert_rule="shell_in_container", evidence=ev)
+        # Still quarantined — safety first — but flagged for review.
+        assert result.action == Action.QUARANTINE
+        assert "interactive exec" in result.reason
+
+    def test_force_quarantine_without_evidence_keeps_base_reason(self):
+        result = score(_ctx(), alert_rule="shell_in_container")
+        assert result.action == Action.QUARANTINE
+        assert "active-compromise rule" in result.reason
+
 
 # ---------------------------------------------------------------------------
 # enrich() — integration-style tests with mocked k8s clients
