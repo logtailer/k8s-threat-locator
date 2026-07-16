@@ -232,6 +232,7 @@ The script triggers the `write_to_etc` Falco rule, polls for the quarantine Netw
 | `shell_in_container` | Shell binary spawned in container | ERROR | Triage → quarantine if score ≥ 70 |
 | `write_to_etc` | File write under `/etc/` inside container | ERROR | Triage → quarantine if score ≥ 70 |
 | `unexpected_outbound_connection` | Outbound from `items-api` on non-standard port | WARNING | Triage → annotate or alert_only |
+| `imds_access_from_container` | Connection to the instance metadata endpoint (`169.254.169.254`) from `items-api` — SSRF / credential theft | ERROR | Force-quarantine (immediate) |
 
 All rules output: `container.id`, `container.name`, `k8s.pod.name`, `k8s.ns.name`, `k8s.pod.uid`, `container.image.repository`, `container.image.tag`.
 
