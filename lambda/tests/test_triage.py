@@ -96,6 +96,16 @@ class TestScore:
         assert result.action == Action.QUARANTINE
         assert result.severity == "critical"
 
+    def test_evidence_does_not_change_weighted_score(self):
+        # Passing evidence must not alter scoring until the syscall-rating step.
+        from triage import AlertEvidence
+
+        ev = AlertEvidence(proc_name="sh", proc_pname="python", proc_cmdline="sh -c id")
+        without = score(_ctx(runs_as_root=True, service_type="NodePort"))
+        with_ev = score(_ctx(runs_as_root=True, service_type="NodePort"), evidence=ev)
+        assert without.score == with_ev.score
+        assert without.action == with_ev.action
+
 
 # ---------------------------------------------------------------------------
 # enrich() — integration-style tests with mocked k8s clients

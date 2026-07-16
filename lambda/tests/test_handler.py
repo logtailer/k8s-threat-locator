@@ -191,3 +191,29 @@ class TestHandlerDispatch:
             handler.handler(_event(), None)
         quarantine.assert_not_called()
         core_v1.patch_namespaced_pod.assert_not_called()
+
+    def test_syscall_evidence_reaches_score(self):
+        # output_fields' syscall keys must arrive at score() as AlertEvidence.
+        p_dl, p_clients, p_enrich, p_metric, _clients = self._patches()
+        message = {
+            "rule": "shell_in_container",
+            "priority": "ERROR",
+            "tags": ["force_quarantine"],
+            "output_fields": {
+                "k8s.pod.name": "pod-x",
+                "k8s.ns.name": "threat-demo",
+                "proc.name": "sh",
+                "proc.pname": "python",
+                "proc.cmdline": "sh -c id",
+                "k8s.pod.uid": "uid-123",
+            },
+        }
+        event = {"Records": [{"Sns": {"Message": json.dumps(message)}}]}
+        with p_dl, p_clients, p_enrich, p_metric, \
+                patch("handler.score", return_value=_triage(handler.Action.ALERT_ONLY, "low", "r", 0)) as score_mock, \
+                patch("handler._quarantine_pod"):
+            handler.handler(event, None)
+        ev = score_mock.call_args.kwargs["evidence"]
+        assert ev.proc_pname == "python"
+        assert ev.proc_cmdline == "sh -c id"
+        assert ev.pod_uid == "uid-123"
