@@ -141,3 +141,25 @@
   exceptions: []
   tags: [process, container, mitre_privilege_escalation]
 
+# The in-cluster Kubernetes API is the .1 of the service CIDR. These cover the
+# common EKS/kubeadm defaults — adjust to your cluster's kubernetes.default.svc
+# ClusterIP (kubectl get svc kubernetes -o jsonpath='{.spec.clusterIP}').
+- macro: k8s_api_server_ip
+  condition: fd.rip in ("172.20.0.1", "10.100.0.1", "10.96.0.1")
+
+- rule: k8s_api_access_from_pod
+  desc: Detect items-api talking to the in-cluster Kubernetes API (a stolen SA token being used — invisible to the port-443 outbound allowlist)
+  enabled: true
+  condition: >
+    outbound
+    and items_api_container
+    and k8s_api_server_ip
+  output: >
+    Kubernetes API access from items-api
+    (user=%user.name proc=%proc.name cmd=%proc.cmdline dest_ip=%fd.rip dest_port=%fd.rport
+    container_id=%container.id pod=%k8s.pod.name ns=%k8s.ns.name
+    image=%container.image.repository pod_uid=%k8s.pod.uid)
+  priority: ERROR
+  exceptions: []
+  tags: [network, container, mitre_discovery]
+
