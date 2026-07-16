@@ -403,11 +403,12 @@ def handler(event, context):
             continue
 
         logger.info(
-            "Falco alert: rule=%s priority=%s pod=%s ns=%s tags=%s time=%s",
+            "Falco alert: rule=%s priority=%s pod=%s ns=%s pod_uid=%s tags=%s time=%s",
             rule,
             priority,
             pod_name,
             namespace,
+            evidence.pod_uid or "unknown",
             alert_tags,
             alert.get("time"),
         )
