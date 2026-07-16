@@ -163,3 +163,21 @@
   exceptions: []
   tags: [network, container, mitre_discovery]
 
+- rule: drop_and_execute_new_binary
+  desc: Detect items-api executing a binary from a writable temp directory (payload dropped then run)
+  enabled: true
+  condition: >
+    spawned_process
+    and items_api_container
+    and (proc.exepath startswith /tmp/
+         or proc.exepath startswith /var/tmp/
+         or proc.exepath startswith /dev/shm/)
+  output: >
+    Execution from writable temp dir in items-api
+    (user=%user.name proc=%proc.name exe=%proc.exepath cmd=%proc.cmdline
+    container_id=%container.id pod=%k8s.pod.name ns=%k8s.ns.name
+    image=%container.image.repository pod_uid=%k8s.pod.uid)
+  priority: ERROR
+  exceptions: []
+  tags: [process, container, mitre_execution]
+
