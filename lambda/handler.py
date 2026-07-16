@@ -13,7 +13,7 @@ from botocore.exceptions import ClientError
 import yaml
 from kubernetes import client
 
-from triage import Action, enrich, score
+from triage import Action, AlertEvidence, enrich, score
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -382,6 +382,18 @@ def handler(event, context):
         priority = alert.get("priority", "unknown")
         alert_tags = alert.get("tags") or []
 
+        # Falco keys use dots; missing fields degrade to "".
+        evidence = AlertEvidence(
+            proc_name=output_fields.get("proc.name", ""),
+            proc_pname=output_fields.get("proc.pname", ""),
+            proc_cmdline=output_fields.get("proc.cmdline", ""),
+            user_uid=str(output_fields.get("user.uid", "")),
+            fd_name=output_fields.get("fd.name", ""),
+            fd_rip=output_fields.get("fd.rip", ""),
+            fd_rport=str(output_fields.get("fd.rport", "")),
+            pod_uid=output_fields.get("k8s.pod.uid", ""),
+        )
+
         if not pod_name or not namespace:
             logger.warning(
                 "Alert missing pod/namespace fields — skipping. rule=%s fields=%s",
@@ -409,7 +421,9 @@ def handler(event, context):
             )
 
             ctx = enrich(core_v1, rbac_v1, pod_name, namespace, apps_v1=apps_v1)
-            result = score(ctx, alert_rule=rule, alert_tags=alert_tags)
+            result = score(
+                ctx, alert_rule=rule, alert_tags=alert_tags, evidence=evidence
+            )
             _emit_triage_metric(pod_name, namespace, result.severity)
 
             if result.action == Action.QUARANTINE:
