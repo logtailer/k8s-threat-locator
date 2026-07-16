@@ -179,6 +179,7 @@ else
     --namespace falco --create-namespace \
     --version "$FALCO_CHART_VERSION" \
     -f falco/values.yaml \
+    --set-file "customRules.custom-rules\.yaml=falco/rules/custom-rules.yaml" \
     --set "falcosidekick.config.aws.rolearn=$FALCOSIDEKICK_ROLE_ARN" \
     --set "falcosidekick.config.aws.sns.topicarn=$FALCO_ALERTS_TOPIC_ARN" \
     --wait --timeout 3m
