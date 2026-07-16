@@ -53,3 +53,19 @@
   exceptions: []
   tags: [network, container, mitre_exfiltration]
 
+- rule: imds_access_from_container
+  desc: Detect access to the cloud instance metadata endpoint from items-api (possible SSRF / credential theft)
+  enabled: true
+  condition: >
+    outbound
+    and items_api_container
+    and fd.rip = "169.254.169.254"
+  output: >
+    IMDS access from items-api
+    (user=%user.name proc=%proc.name cmd=%proc.cmdline dest_ip=%fd.rip dest_port=%fd.rport
+    container_id=%container.id pod=%k8s.pod.name ns=%k8s.ns.name
+    image=%container.image.repository pod_uid=%k8s.pod.uid)
+  priority: ERROR
+  exceptions: []
+  tags: [network, container, mitre_credential_access, force_quarantine]
+
