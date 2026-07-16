@@ -100,6 +100,14 @@ _FORCE_QUARANTINE_RULES = frozenset(
     }
 )
 
+# Parent-process names that indicate the application runtime itself spawned the
+# offending process — i.e. application RCE, not a human operator's `kubectl exec`
+# (which descends from a container-runtime/shell with a tty). Used only to
+# annotate the quarantine reason; it never changes the action.
+_APP_RUNTIME_PARENTS = frozenset(
+    {"python", "python3", "node", "gunicorn", "uwsgi", "java", "ruby", "flask"}
+)
+
 
 def enrich(
     core_v1: client.CoreV1Api,
@@ -293,6 +301,28 @@ def _enrich_owner(
     logger.debug("Pod %s/%s has no recognised workload owner", namespace, ctx.pod_name)
 
 
+def _force_quarantine_reason(
+    alert_rule: str, evidence: AlertEvidence | None
+) -> str:
+    """Annotate a force-quarantine with WHY, using the parent process.
+
+    The action is always QUARANTINE (safety first); this only helps a responder
+    tell application RCE from an operator's interactive exec at a glance.
+    """
+    base = f"active-compromise rule triggered: {alert_rule}"
+    if evidence is None or not evidence.proc_pname:
+        return base
+    if evidence.proc_pname in _APP_RUNTIME_PARENTS:
+        return (
+            f"{base} — application RCE "
+            f"(process spawned by app runtime '{evidence.proc_pname}')"
+        )
+    return (
+        f"{base} — likely interactive exec "
+        f"(parent '{evidence.proc_pname}'), review"
+    )
+
+
 def score(
     ctx: PodContext,
     alert_rule: str = "",
@@ -330,17 +360,19 @@ def score(
         alert_tags is not None and "force_quarantine" in alert_tags
     ) or alert_rule in _FORCE_QUARANTINE_RULES
     if force_quarantine:
+        reason = _force_quarantine_reason(alert_rule, evidence)
         logger.info(
-            "Triage: pod=%s/%s rule=%s forced quarantine (active-compromise rule)",
+            "Triage: pod=%s/%s rule=%s forced quarantine (%s)",
             ctx.namespace,
             ctx.pod_name,
             alert_rule,
+            reason,
         )
         return TriageResult(
             score=100,
             severity="critical",
             action=Action.QUARANTINE,
-            reason=f"active-compromise rule triggered: {alert_rule}",
+            reason=reason,
             context=ctx,
         )
 
