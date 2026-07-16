@@ -236,6 +236,14 @@ The script triggers the `write_to_etc` Falco rule, polls for the quarantine Netw
 | `write_to_etc` | File write under `/etc/` inside container | ERROR | Force-quarantine (immediate) |
 | `unexpected_outbound_connection` | Outbound from `items-api` on non-standard port | WARNING | Detect-only (dropped before triage by priority filter) |
 | `imds_access_from_container` | Connection to the instance metadata endpoint (`169.254.169.254`) from `items-api` — SSRF / credential theft | ERROR | Force-quarantine (immediate) |
+| `serviceaccount_token_read` | Read of the mounted K8s ServiceAccount token — credential theft | ERROR | Detect-only |
+| `proc_environ_read` | Read of `/proc/<pid>/environ` — leaks env-injected secrets | ERROR | Detect-only |
+| `reverse_shell_via_interpreter` | Interpreter (`python`/`perl`/`ruby`/`node`) with reverse-shell primitives — `shell_in_container` misses this | ERROR | Detect-only |
+| `container_escape_attempt` | `mount`/`umount`/`unshare`/`setns`/`nsenter` in `items-api` | ERROR | Detect-only |
+| `k8s_api_access_from_pod` | `items-api` reaching the in-cluster Kubernetes API (stolen SA token) | ERROR | Detect-only |
+| `drop_and_execute_new_binary` | Execution from `/tmp`, `/var/tmp`, or `/dev/shm` — dropped payload | ERROR | Detect-only |
+
+The six detect-only rules fire at ERROR but omit the `force_quarantine` tag, so they surface signal without auto-isolating; promote one by adding the tag (and, for tag-less deployments, its name to `_FORCE_QUARANTINE_RULES` in `lambda/triage.py`). Each is exercisable against the `app/` vuln-lab endpoints.
 
 All rules output: `container.id`, `container.name`, `k8s.pod.name`, `k8s.ns.name`, `k8s.pod.uid`, `container.image.repository`, `container.image.tag`.
 
