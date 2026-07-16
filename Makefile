@@ -7,6 +7,11 @@ lint:
 	ruff check lambda/handler.py lambda/triage.py
 	ruff format --check lambda/handler.py lambda/triage.py
 	yamllint -d relaxed falco/values.yaml falco/rules/custom-rules.yaml k8s/
+	@# Guard: rules live only in falco/rules/custom-rules.yaml (injected via --set-file).
+	@if grep -qE '^\s*- rule:' falco/values.yaml; then \
+		echo "ERROR: falco/values.yaml must not contain Falco rules — edit falco/rules/custom-rules.yaml"; \
+		exit 1; \
+	fi
 
 docker-build:
 	docker build --platform linux/amd64 -t k8s-threat-locator-app:local app/
