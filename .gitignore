@@ -15,6 +15,7 @@ build/
 venv/
 env/
 .venv/
+.venv-local/
 
 # Terraform
 **/.terraform/

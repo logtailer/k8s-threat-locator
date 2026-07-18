@@ -268,6 +268,67 @@ kubectl annotate serviceaccount app-sa -n threat-demo \
 
 ## Running Tests
 
+## Local Test Stack (No AWS Bill)
+
+You can run a full local test instance of the pipeline with:
+
+- `kind` for Kubernetes (app + network policy quarantine)
+- `LocalStack` for AWS services (S3, SNS, SQS, CloudWatch)
+- A local responder runner that polls SQS and invokes `lambda/handler.py`
+
+This validates the same event flow end-to-end:
+
+`Falco alert (synthetic) -> SNS -> SQS -> responder -> pod label + quarantine NetworkPolicy`
+
+### Prerequisites
+
+- Docker
+- kind
+- kubectl
+- aws CLI
+- Python 3.11+
+
+### 1. Bootstrap local stack
+
+```bash
+make local-bootstrap
+```
+
+This command:
+
+- Starts LocalStack via `docker-compose.localstack.yml`
+- Creates (or reuses) a local kind cluster
+- Builds and deploys the vulnerable app into the cluster
+- Creates local SNS/SQS/S3 resources in LocalStack
+- Uploads kind kubeconfig to LocalStack S3
+- Writes runtime variables to `.env.localtest`
+
+### 2. Run local responder
+
+```bash
+make local-responder
+```
+
+Leave this running in a terminal. It continuously polls the local queue and executes the same Lambda handler logic.
+
+### 3. Simulate attack event locally
+
+```bash
+make local-simulate-attack
+```
+
+This publishes a Falco-like alert payload to LocalStack SNS and waits for the quarantine policy to appear in the cluster.
+
+### 4. Tear down local stack
+
+```bash
+make local-down
+```
+
+This removes the kind cluster, stops LocalStack, deletes local volumes, and removes `.env.localtest`.
+
+## Running Tests
+
 ```bash
 make lambda-test
 # equivalent to:
