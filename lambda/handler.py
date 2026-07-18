@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import base64
 import json
 import logging
@@ -11,7 +13,7 @@ from botocore.awsrequest import AWSRequest
 from botocore.config import Config as BotocoreConfig
 from botocore.exceptions import ClientError
 import yaml
-from kubernetes import client
+from kubernetes import client, config as k8s_config
 
 from triage import Action, AlertEvidence, enrich, score
 
@@ -23,9 +25,22 @@ KUBECONFIG_KEY = os.environ.get("KUBECONFIG_KEY", "kubeconfig")
 KUBECONFIG_PATH = "/tmp/kubeconfig"
 AWS_REGION = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
 OPS_ALERTS_TOPIC_ARN = os.environ.get("OPS_ALERTS_TOPIC_ARN", "")
+AWS_ENDPOINT_URL = os.environ.get("AWS_ENDPOINT_URL", "")
+K8S_AUTH_MODE = os.environ.get("K8S_AUTH_MODE", "eks_token")
 
 if not KUBECONFIG_BUCKET:
     logger.warning("KUBECONFIG_BUCKET is not set — S3 download will fail at runtime")
+
+
+def _aws_client(service_name: str, **kwargs):
+    """Create boto3 clients with optional LocalStack endpoint override."""
+    endpoint_url = AWS_ENDPOINT_URL or None
+    return boto3.client(
+        service_name,
+        region_name=AWS_REGION,
+        endpoint_url=endpoint_url,
+        **kwargs,
+    )
 
 
 def _notify_ops(
@@ -40,7 +55,7 @@ def _notify_ops(
     if not OPS_ALERTS_TOPIC_ARN:
         logger.debug("OPS_ALERTS_TOPIC_ARN not set — skipping ops notification")
         return
-    sns = boto3.client("sns", region_name=AWS_REGION)
+    sns = _aws_client("sns")
     message = (
         f"k8s-threat-locator: pod {namespace}/{pod_name} flagged at severity={severity}\n"
         f"rule: {rule or 'unknown'}  priority: {priority or 'unknown'}  score: {score}\n"
@@ -57,7 +72,7 @@ def _notify_ops(
 
 
 def _emit_triage_metric(pod_name: str, namespace: str, severity: str) -> None:
-    cw = boto3.client("cloudwatch", region_name=AWS_REGION)
+    cw = _aws_client("cloudwatch")
     cw.put_metric_data(
         Namespace="k8s-threat-locator",
         MetricData=[
@@ -76,7 +91,7 @@ def _emit_triage_metric(pod_name: str, namespace: str, severity: str) -> None:
 
 
 def _emit_quarantine_metric(pod_name: str, namespace: str, rule: str = "") -> None:
-    cw = boto3.client("cloudwatch", region_name=AWS_REGION)
+    cw = _aws_client("cloudwatch")
     cw.put_metric_data(
         Namespace="k8s-threat-locator",
         MetricData=[
@@ -116,6 +131,18 @@ def _generate_eks_token(cluster_name: str, region: str) -> str:
 
 
 def _get_k8s_clients() -> tuple:
+    if K8S_AUTH_MODE == "kubeconfig":
+        # Local mode: use user/client certs from kubeconfig as-is (for kind/minikube).
+        k8s_config.load_kube_config(config_file=KUBECONFIG_PATH)
+        k8s_client = client.ApiClient()
+        return (
+            client.CoreV1Api(k8s_client),
+            client.NetworkingV1Api(k8s_client),
+            client.RbacAuthorizationV1Api(k8s_client),
+            client.AppsV1Api(k8s_client),
+            None,
+        )
+
     with open(KUBECONFIG_PATH) as f:
         kube_cfg = yaml.safe_load(f)
 
@@ -138,14 +165,14 @@ def _get_k8s_clients() -> tuple:
         ca_file.write(base64.b64decode(ca_b64))
         ca_cert_path = ca_file.name
 
-    k8s_config = client.Configuration()
-    k8s_config.host = server
-    k8s_config.ssl_ca_cert = ca_cert_path
-    k8s_config.verify_ssl = True
-    k8s_config.api_key = {"authorization": token}
-    k8s_config.api_key_prefix = {"authorization": "Bearer"}
+    k8s_cfg = client.Configuration()
+    k8s_cfg.host = server
+    k8s_cfg.ssl_ca_cert = ca_cert_path
+    k8s_cfg.verify_ssl = True
+    k8s_cfg.api_key = {"authorization": token}
+    k8s_cfg.api_key_prefix = {"authorization": "Bearer"}
 
-    k8s_client = client.ApiClient(configuration=k8s_config)
+    k8s_client = client.ApiClient(configuration=k8s_cfg)
     return (
         client.CoreV1Api(k8s_client),
         client.NetworkingV1Api(k8s_client),
@@ -265,9 +292,8 @@ def _quarantine_workload(
 
 
 def _download_kubeconfig() -> None:
-    s3 = boto3.client(
+    s3 = _aws_client(
         "s3",
-        region_name=AWS_REGION,
         config=BotocoreConfig(
             connect_timeout=5,
             read_timeout=10,
