@@ -303,6 +303,8 @@ This command:
 - Uploads kind kubeconfig to LocalStack S3
 - Writes runtime variables to `.env.localtest`
 
+> **Network enforcement caveat:** a stock kind cluster uses kindnet, which does not enforce NetworkPolicies and has no Calico CRDs. The bootstrap therefore skips the Calico baseline policies locally, and the quarantine NetworkPolicy is *created and the pod is labelled* (the control flow this stack validates) but traffic is not actually blocked. Install Calico on the kind cluster if you need real enforcement locally.
+
 ### 2. Run local responder
 
 ```bash

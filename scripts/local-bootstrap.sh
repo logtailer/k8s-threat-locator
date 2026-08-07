@@ -53,10 +53,20 @@ kubectl apply -f "$ROOT_DIR/k8s/limitrange.yaml"
 # Strip the AWS-only IRSA annotation for local clusters.
 sed '/eks.amazonaws.com\/role-arn/d' "$ROOT_DIR/k8s/serviceaccount.yaml" | kubectl apply -f -
 
-kubectl apply -f "$ROOT_DIR/k8s/network-policies/allow-dns.yaml"
-kubectl apply -f "$ROOT_DIR/k8s/network-policies/allow-ingress-app.yaml"
-kubectl apply -f "$ROOT_DIR/k8s/network-policies/allow-egress-app.yaml"
-kubectl apply -f "$ROOT_DIR/k8s/network-policies/default-deny.yaml"
+# The baseline network policies are Calico CRDs (crd.projectcalico.org/v1).
+# A stock kind cluster runs kindnet and has no Calico CRDs, so applying them
+# would fail and abort this script. Apply only when Calico is present; a
+# kindnet cluster does not enforce NetworkPolicies anyway, so the local stack
+# validates the detect -> quarantine CONTROL FLOW, not network enforcement.
+# (Install Calico on kind if you need real enforcement locally.)
+if kubectl get crd networkpolicies.crd.projectcalico.org >/dev/null 2>&1; then
+  kubectl apply -f "$ROOT_DIR/k8s/network-policies/allow-dns.yaml"
+  kubectl apply -f "$ROOT_DIR/k8s/network-policies/allow-ingress-app.yaml"
+  kubectl apply -f "$ROOT_DIR/k8s/network-policies/allow-egress-app.yaml"
+  kubectl apply -f "$ROOT_DIR/k8s/network-policies/default-deny.yaml"
+else
+  echo "==> Skipping Calico baseline network policies (no Calico CRDs on this cluster)"
+fi
 
 sed \
   -e "s|<ECR_REPO_URL>/k8s-threat-locator:<IMAGE_TAG>|$APP_IMAGE|g" \
