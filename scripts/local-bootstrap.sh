@@ -135,9 +135,13 @@ QUEUE_POLICY=$(cat <<JSON
 }
 JSON
 )
+# --attributes needs a JSON map; the `Policy=<multiline json>` shorthand can't
+# parse the policy's quotes/commas ("Expected: '=', received: '\"'"). Build a
+# proper {"Policy": "<escaped json string>"} with python3 (already a prereq).
+QUEUE_ATTRS="$(python3 -c 'import json,sys; pol=json.load(sys.stdin); print(json.dumps({"Policy": json.dumps(pol)}))' <<<"$QUEUE_POLICY")"
 aws --endpoint-url "$LOCALSTACK_ENDPOINT" sqs set-queue-attributes \
   --queue-url "$RESPONDER_QUEUE_URL" \
-  --attributes "Policy=$QUEUE_POLICY" >/dev/null
+  --attributes "$QUEUE_ATTRS" >/dev/null
 
 TMP_KUBECONFIG="$(mktemp)"
 kind get kubeconfig --name "$KIND_CLUSTER" > "$TMP_KUBECONFIG"
