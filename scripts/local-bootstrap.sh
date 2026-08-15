@@ -91,7 +91,10 @@ sed \
 kubectl apply -f "$ROOT_DIR/k8s/service.yaml"
 kubectl apply -f "$ROOT_DIR/k8s/pdb.yaml"
 kubectl apply -f "$ROOT_DIR/k8s/lambda-rbac.yaml"
-kubectl rollout status deployment/items-api -n "$NAMESPACE" --timeout=120s
+# 240s (not 120s): the cold local path (image build+load, two replicas each
+# with a startupProbe of up to ~50s) can exceed 120s even when the pods are
+# healthy and climbing — 120s was expiring at "1 of 2 available".
+kubectl rollout status deployment/items-api -n "$NAMESPACE" --timeout=240s
 
 echo "==> Creating LocalStack resources (S3/SNS/SQS/CloudWatch)"
 if [[ "$AWS_REGION" == "us-east-1" ]]; then
