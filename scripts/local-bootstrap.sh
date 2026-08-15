@@ -41,9 +41,24 @@ if ! kind get clusters | grep -qx "$KIND_CLUSTER"; then
 fi
 kubectl config use-context "kind-$KIND_CLUSTER" >/dev/null
 
-echo "==> Building app image and loading into kind"
-docker build --platform linux/amd64 -t "$APP_IMAGE" "$ROOT_DIR/app"
-kind load docker-image "$APP_IMAGE" --name "$KIND_CLUSTER"
+# kind nodes carry no topology labels, but the deployment's
+# topologySpreadConstraints require topology.kubernetes.io/zone
+# (whenUnsatisfiable: DoNotSchedule) — without it both replicas stay Pending.
+# Give the single node a synthetic zone/region so the constraint is satisfied.
+kubectl label nodes --all \
+  topology.kubernetes.io/zone=local topology.kubernetes.io/region=local --overwrite >/dev/null
+
+echo "==> Building app image (native arch) and loading into kind"
+# Build for the host/kind arch (NOT linux/amd64 — that's for ECR/EKS) and
+# disable buildx attestations. Load via a saved archive: `kind load
+# docker-image` can leave the image untagged in the CRI view kubelet uses
+# (buildx/OCI quirk), which surfaces as ImagePullBackOff. `docker save` +
+# `kind load image-archive` preserves the tag.
+docker build --provenance=false -t "$APP_IMAGE" "$ROOT_DIR/app"
+IMG_TAR="$(mktemp)"
+docker save "$APP_IMAGE" -o "$IMG_TAR"
+kind load image-archive "$IMG_TAR" --name "$KIND_CLUSTER"
+rm -f "$IMG_TAR"
 
 echo "==> Applying Kubernetes manifests"
 kubectl apply -f "$ROOT_DIR/k8s/namespace.yaml"
