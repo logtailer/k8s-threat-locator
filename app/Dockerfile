@@ -1,4 +1,9 @@
-FROM python:3.11-slim
+# python:3.9 is the newest base on which the intentionally-old, vulnerable deps
+# still import: Werkzeug 0.14.1 uses collections.Container/Iterable/MutableSet,
+# which Python 3.10+ removed. On 3.11 the app crashes on import (never boots),
+# so Falco has no running items-api to watch. Keep the deps (they carry the
+# intentional CVEs that hold the Trivy gate red); pin the base to 3.9 so it runs.
+FROM python:3.9-slim
 
 WORKDIR /app
 
