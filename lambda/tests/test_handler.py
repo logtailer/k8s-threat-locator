@@ -217,3 +217,17 @@ class TestHandlerDispatch:
         assert ev.proc_pname == "python"
         assert ev.proc_cmdline == "sh -c id"
         assert ev.pod_uid == "uid-123"
+
+
+class TestMetricsAreNonFatal:
+    """Telemetry must never block the security response."""
+
+    def test_triage_metric_swallows_backend_error(self):
+        with patch("handler._aws_client") as mk:
+            mk.return_value.put_metric_data.side_effect = RuntimeError("cw down")
+            handler._emit_triage_metric("pod-x", "threat-demo", "critical")  # no raise
+
+    def test_quarantine_metric_swallows_backend_error(self):
+        with patch("handler._aws_client") as mk:
+            mk.return_value.put_metric_data.side_effect = RuntimeError("cw down")
+            handler._emit_quarantine_metric("pod-x", "threat-demo", "write_to_etc")  # no raise

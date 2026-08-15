@@ -72,47 +72,66 @@ def _notify_ops(
 
 
 def _emit_triage_metric(pod_name: str, namespace: str, severity: str) -> None:
-    cw = _aws_client("cloudwatch")
-    cw.put_metric_data(
-        Namespace="k8s-threat-locator",
-        MetricData=[
-            {
-                "MetricName": "TriageScore",
-                "Dimensions": [
-                    {"Name": "Namespace", "Value": namespace},
-                    {"Name": "Pod", "Value": pod_name},
-                    {"Name": "Severity", "Value": severity},
-                ],
-                "Value": 1,
-                "Unit": "Count",
-            }
-        ],
-    )
+    # Telemetry must never block the security response — a CloudWatch error
+    # here previously aborted the whole invocation before the pod was
+    # quarantined. Swallow and log instead.
+    try:
+        cw = _aws_client("cloudwatch")
+        cw.put_metric_data(
+            Namespace="k8s-threat-locator",
+            MetricData=[
+                {
+                    "MetricName": "TriageScore",
+                    "Dimensions": [
+                        {"Name": "Namespace", "Value": namespace},
+                        {"Name": "Pod", "Value": pod_name},
+                        {"Name": "Severity", "Value": severity},
+                    ],
+                    "Value": 1,
+                    "Unit": "Count",
+                }
+            ],
+        )
+    except Exception as exc:
+        logger.warning(
+            "Failed to emit TriageScore metric for %s/%s (non-fatal): %s",
+            namespace,
+            pod_name,
+            exc,
+        )
 
 
 def _emit_quarantine_metric(pod_name: str, namespace: str, rule: str = "") -> None:
-    cw = _aws_client("cloudwatch")
-    cw.put_metric_data(
-        Namespace="k8s-threat-locator",
-        MetricData=[
-            {
-                "MetricName": "QuarantineApplied",
-                "Dimensions": [
-                    {"Name": "Namespace", "Value": namespace},
-                    {"Name": "Pod", "Value": pod_name},
-                    {"Name": "Rule", "Value": rule or "unknown"},
-                ],
-                "Value": 1,
-                "Unit": "Count",
-            }
-        ],
-    )
-    logger.info(
-        "Emitted QuarantineApplied metric for pod %s/%s rule=%s",
-        namespace,
-        pod_name,
-        rule,
-    )
+    try:
+        cw = _aws_client("cloudwatch")
+        cw.put_metric_data(
+            Namespace="k8s-threat-locator",
+            MetricData=[
+                {
+                    "MetricName": "QuarantineApplied",
+                    "Dimensions": [
+                        {"Name": "Namespace", "Value": namespace},
+                        {"Name": "Pod", "Value": pod_name},
+                        {"Name": "Rule", "Value": rule or "unknown"},
+                    ],
+                    "Value": 1,
+                    "Unit": "Count",
+                }
+            ],
+        )
+        logger.info(
+            "Emitted QuarantineApplied metric for pod %s/%s rule=%s",
+            namespace,
+            pod_name,
+            rule,
+        )
+    except Exception as exc:
+        logger.warning(
+            "Failed to emit QuarantineApplied metric for %s/%s (non-fatal): %s",
+            namespace,
+            pod_name,
+            exc,
+        )
 
 
 def _generate_eks_token(cluster_name: str, region: str) -> str:
